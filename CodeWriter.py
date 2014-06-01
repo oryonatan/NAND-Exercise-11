@@ -88,7 +88,7 @@ def compileFunctionArguments(parameterList, scope, buf):
     if (len(params) == 1 and params[0].nodeValue == '\n'):
         print('Function accepts zero arguments')
     else:
-        print('Function accepts' + str(len(params) / 2) + 'arguments') # TODO: not accurate, since ',' also appears
+        print('Function accepts' + str(len(params) / 2) + 'arguments') # TODO: not accurate, since ',' also appears. Better to use a while loop.
         for node in params:
             print node  # TODO: parse the parameters and add them to the scope
             var_visibility = 'argument' # TODO: verify this; it should be defined as a local variable but accessed from ARG register
@@ -102,8 +102,13 @@ def compileFunctionArguments(parameterList, scope, buf):
     parameterList.unlink()
 
 def compileFunctionBody(body, scope, buf):
+    print("Compiling function body\n\n")
+    data = list(body.childNodes)
     
-    pass
+    # TODO: need to compile Variable Declaration and Statements, all using the same scope.
+    for n in data:
+        print n
+    
 
 def writePush(mem_segment, index):
     pass # TODO: writes a VM push command
