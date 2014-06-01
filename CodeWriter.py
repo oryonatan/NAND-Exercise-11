@@ -278,7 +278,7 @@ def compileExpression(xml_data, scope, buf):
     terms = list(xml_data.childNodes)
     
     print('\tCompiling Expression')
-    buf = traversePostOrder(xml_data, [], buf)
+    buf = traversePostOrder(xml_data, buf)
     # TODO: need something more sophisticated here. Also, should probably write the vm code directly at this point.
     #print(terms)
 
@@ -297,18 +297,66 @@ def compileExpression(xml_data, scope, buf):
     print(buf)
     return buf
 
-def traversePostOrder(root, exp, buf):
-    if (root.hasChildNodes()):
-        temp = ''
-        for child in root.childNodes:
-            while (not child.nodeValue):
-                child = child.firstChild
+def traversePostOrder(root, buf):
+    child_nodes = list(root.childNodes)
+    if (len(child_nodes) == 3): # term_1 op term_2
+        left_term = traversePostOrder(child_nodes[0], buf)
+        right_term = traversePostOrder(child_nodes[2], buf)
+        op = traversePostOrder(child_nodes[1], buf)
+        return str(left_term) + str(right_term) + str(op)
 
-            temp = str(temp) + str(traversePostOrder(child, exp, buf))
-        return str(buf) + str(temp)
-    else:
-        # exp.append(root.nodeValue.strip())
-        return 'push ' + root.nodeValue.strip() + ' \n'
+    elif (len(child_nodes) == 2): # op term
+        op = traversePostOrder(child_nodes[0])
+        term = traversePostOrder(child_nodes[1])
+        return str(term) + str(op)
+
+    elif (len(child_nodes) == 1): # term
+        node = child_nodes[0]
+        label = node.tagName
+        if (label == 'integerConstant'):
+            print(node.firstChild.nodeValue.strip())
+            return node.firstChild.nodeValue.strip()
+        elif (label == 'stringConstant'):
+            pass    # TODO: create a string constant
+        elif (label == 'keywordConstant'):
+            print(node.firstChild.nodeValue.strip())    # TODO: create manual representation
+            return node.firstChild.nodeValue.strip()
+        elif (label == 'identifier'):
+            pass
+        elif (label == 'symbol'):
+            pass
+        else:
+            raise NotImplementedError
+
+
+
+
+        # print(node.tagName)
+        # if (child_nodes[0].hasChildNodes()):
+        #     for node in child_nodes[0].childNodes:
+        #         traversePostOrder(node, buf)
+        # else:
+        #     op = child_nodes[0].nodeValue.strip()
+        #     if (op in ['(', ')']):
+        #         pass
+        #     else:
+        #         return str(op) + '\n'
+    
+    # if (root.hasChildNodes()):
+    #     temp = ''
+    #     for child in root.childNodes:
+    #         org_child = child
+    #         while (child.nextSibling):
+    #             while (not child.nodeValue):
+    #                 child = child.firstChild
+                
+    #             temp = str(temp) + str(traversePostOrder(child, buf))
+    #             child = org_child.nextSibling
+        
+    #     return str(buf) + str(temp)
+    # else:
+    #     # exp.append(root.nodeValue.strip())
+    #     return 'push ' + root.nodeValue.strip() + ' \n'
 
 
 
