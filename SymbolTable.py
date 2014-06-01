@@ -4,35 +4,37 @@ class ScopeChain:
 
     def __init__(self):
         self.class_scope = {}
-        self.current_scope = {}
+        self.chain = [self.class_scope]
 
-    def startSubroutine(self):
-        self.current_scope = {}
+    def pushNewScope(self):
+        current_scope = {}
+        self.chain.append(current_scope)
+
+    def leaveScope(self):
+        self.chain.pop(-1)
 
     def define(self, var_name, var_type, var_visibility):
         if (var_visibility in ['static', 'field']):
-            self.class_scope[var_name] = (var_name, var_type, var_visibility, len(self.class_scope) + 1)
+            self.chain[0][var_name] = (var_name, var_type, var_visibility, len(self.class_scope) + 1)
         else:
-            self.current_scope[var_name] = (var_name, var_type, var_visibility, len(self.current_scope) + 1)
+            self.chain[-1][var_name] = (var_name, var_type, var_visibility, len(self.current_scope) + 1)
 
     def varCount(self, visibility):
         if (visibility in ['static', 'field']):
-            return len(self.class_scope)
+            return len(self.chain[0])
         else:
-            return len(self.current_scope)
+            return len(self.chain[-1])
 
     def kindOf(self, var_name):
-        if (var_name in self.current_scope):
-            return self.current_scope[var_name][2]
-        elif (var_name in self.class_scope):
-            return self.class_scope[var_name][2]
+        for i in range(len(self.chain) - 1, 0, -1):
+            if (var_name in self.chain[i]):
+                return self.chain[i][var_name][2]
         else:
             return None
 
     def indexOf(self, var_name):
-        if (var_name in self.current_scope):
-            return self.current_scope[var_name][3]
-        elif (var_name in self.class_scope):
-            return self.class_scope[var_name][3]
+        for i in range(len(self.chain) - 1, 0, -1):
+            if (var_name in self.chain[i]):
+                return self.chain[i][var_name][3]
         else:
             return None
