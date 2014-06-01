@@ -6,7 +6,10 @@ Project 11 - Code Generation
 Files:
 Tokenizer.py		-	Tokenizer module
 Parser.py           -   Parser module
-JackAnalyzer.py     -   Engine
+JackAnalyzer.py     -   Initial parsing engine
+JackCompiler.py		-	Compilation engine
+SymbolTable.py		-	Variable scoping data structure
+CodeWriter.py		-	Code Generator
 README			    -	this file
 
 
