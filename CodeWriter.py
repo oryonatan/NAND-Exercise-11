@@ -184,7 +184,7 @@ def compileIfStatement(xml_data, scope, buf):
     data = list(xml_data.childNodes)
     cond_exp = data[2]
     
-    statement_body = data[4]
+    statement_body = data[5]
 
     if (len(data) == 11):
         print('If block with Else statement')
@@ -192,7 +192,7 @@ def compileIfStatement(xml_data, scope, buf):
         # TODO: might need to change the internal ordering of some function calls here
         compileExpression(cond_exp, scope, buf)
         compileStatements(statement_body, scope, buf)
-        compileStatements(else_statements, scope, buf)
+        compileStatements(else_statement, scope, buf)
     elif (len(data) == 7):
         print('If block without an Else statement')
         # TODO: might need to change the internal ordering of some function calls here
@@ -249,9 +249,21 @@ def compileReturnStatement(xml_data, scope, buf):
         pass    # TODO: return 0 or something of that sort
     scope.leaveScope()
 
+
 def compileExpression(xml_data, scope, buf):
+    expect_label(xml_data, 'expression')
+    terms = list(xml_data.childNodes)
+    
     print('\tCompiling Expression')
     #raise NotImplementedError()
+
+    # TODO: basically speaking, we should create an expression tree and traverse it
+    #       Post-Order to create the expression evaluation chain we need. Right?
+
+
+
+
+
 
 # ---------------------- VM code generation -------------------------
 def writePush(mem_segment, index):
