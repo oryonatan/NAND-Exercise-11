@@ -255,12 +255,18 @@ def compileExpression(xml_data, scope, buf):
     terms = list(xml_data.childNodes)
     
     print('\tCompiling Expression')
-    #raise NotImplementedError()
+    terms = traversePostOrder(xml_data, [])
+    # TODO: need something more sophisticated here. Also, should probably write the vm code directly at this point.
+    #print(terms)    
 
-    # TODO: basically speaking, we should create an expression tree and traverse it
-    #       Post-Order to create the expression evaluation chain we need. Right?
-
-
+def traversePostOrder(root, exp):
+    if (root.hasChildNodes()):
+        for child in root.childNodes:
+            traversePostOrder(child, exp)
+    else:
+        exp.append(root.nodeValue.strip())
+    
+    return exp
 
 
 
