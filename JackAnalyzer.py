@@ -16,7 +16,8 @@ def analyze(root_dir):
         raise Exception("XML data and file names count mismatch")
 
     parsed_files = []
+
     for i in range(len(tokenized_data)):
-        parsed_files[i] = parse(tokenized_data[i])
+        parsed_files.append(parse(tokenized_data[i]))
 
     return parsed_files, file_names
