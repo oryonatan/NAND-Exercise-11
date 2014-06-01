@@ -25,12 +25,24 @@ def encode(xml_data):
 def compileClassDeclaration(xml_data, scope, buf):
     class_data = list(xml_data.childNodes)
     class_name = class_data[1].firstChild.nodeValue
-    class_body = class_data[3]
     
     print('Recognized Class Declaration')
     print('\tClass name:' + str(class_name))
+    # TODO: need a loop here for multiple subroutineDec and classVarDec
     print('\tCompiling class body')
-    compileClassBody(class_body, scope, buf)
+    class_data = class_data[3:] # discard previously handled elements
+
+    while (class_data):
+        operation = class_data[0].tagName
+        if (operation == 'subroutineDec'):
+            compileClassBody(class_data[0], scope, buf)
+        elif (operation == 'classVarDec'):
+            compileVarDeclaration(class_data[0], scope, buf)
+        elif (operation == 'symbol' and class_data[0].firstChild.nodeValue.strip() == '}'):
+            print 'Finished compiling class subroutines and variables'
+        else:
+            raise Exception('Unknown operation in class body')
+        class_data.pop(0)
 
 def compileClassBody(xml_data, scope, buf):
     expect_label(xml_data, 'subroutineDec')
@@ -39,8 +51,9 @@ def compileClassBody(xml_data, scope, buf):
     while (xml_data.hasChildNodes()):
         print('body data length: ' + str(len(xml_data.childNodes)))
         current_top = xml_data.childNodes[0]
-        print(current_top.firstChild.nodeValue)
-        if (str(current_top.firstChild.nodeValue).strip() in ['constructor', 'function', 'method']):
+        command = str(current_top.firstChild.nodeValue).strip()
+        print(command)
+        if (command in ['constructor', 'function', 'method']):
             compileFunctionDeclaration(current_top.parentNode, scope, buf)
     
     for node in xml_data.childNodes:
@@ -50,8 +63,6 @@ def compileFunctionDeclaration(xml_data, scope, buf):
     expect_values(xml_data.firstChild, ['constructor', 'function', 'method'])
     print("Recognized function declaration")
     func_data = list(xml_data.childNodes)
-    for node in func_data:
-        print(node)
     
     function_declare_mode = func_data[0].firstChild.nodeValue.strip()
     function_return_type = func_data[1].firstChild.nodeValue.strip()
@@ -69,6 +80,30 @@ def compileFunctionDeclaration(xml_data, scope, buf):
     xml_data.unlink()
 
 
+def compileFunctionArguments(parameterList, scope, buf):
+    scope.startSubroutine()
+    expect_label(parameterList, 'parameterList')
+    print('Compiling parameter list')
+    params = list(parameterList.childNodes)
+    if (len(params) == 1 and params[0].nodeValue == '\n'):
+        print('Function accepts zero arguments')
+    else:
+        print('Function accepts' + str(len(params) / 2) + 'arguments') # TODO: not accurate, since ',' also appears
+        for node in params:
+            print node  # TODO: parse the parameters and add them to the scope
+            var_visibility = 'argument' # TODO: verify this; it should be defined as a local variable but accessed from ARG register
+            var_type = node
+            var_name = node
+            scope.define(var_name, var_type, var_visibility)
+            print('Added variable [' + var_type + ' ' + var_name +'] to local scope')
+
+    # destroy the nodes we compiled
+    parameterList.parentNode.removeChild(parameterList)
+    parameterList.unlink()
+
+def compileFunctionBody(body, scope, buf):
+    
+    pass
 
 def writePush(mem_segment, index):
     pass # TODO: writes a VM push command
