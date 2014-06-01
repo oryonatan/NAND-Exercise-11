@@ -33,7 +33,7 @@ if __name__ == '__main__':
         else:
             source_code = encode(xml_data[i])
             with open(file_names[i].replace('.jack', '.xml'), 'w') as f:
-                f.write(source_code.toprettyxml())
+                f.write(source_code)
 
     if debug_mode:
         print("\n\nAll processing finished")

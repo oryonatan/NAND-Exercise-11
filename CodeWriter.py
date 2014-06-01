@@ -13,14 +13,13 @@ def expect_values(xml_data, desired_values):
 
 def encode(xml_data):
     expect_label(xml_data, 'class')
-
+    result = ''
     # parsing new class
     scope = ScopeChain()
     main_nodes = list(xml_data.childNodes)
 
-    compileClassDeclaration(xml_data, scope, '')
-    print("encode exit")
-    exit()
+    compileClassDeclaration(xml_data, scope, result)
+    return result
 
 def compileClassDeclaration(xml_data, scope, buf):
     class_data = list(xml_data.childNodes)
@@ -28,7 +27,6 @@ def compileClassDeclaration(xml_data, scope, buf):
     
     print('Recognized Class Declaration')
     print('\tClass name:' + str(class_name))
-    # TODO: need a loop here for multiple subroutineDec and classVarDec
     print('\tCompiling class body')
     class_data = class_data[3:] # discard previously handled elements
 
@@ -43,6 +41,7 @@ def compileClassDeclaration(xml_data, scope, buf):
         else:
             raise Exception('Unknown operation in class body')
         class_data.pop(0)
+    return buf
 
 def compileClassBody(xml_data, scope, buf):
     expect_label(xml_data, 'subroutineDec')
@@ -57,6 +56,7 @@ def compileClassBody(xml_data, scope, buf):
     
     # for node in xml_data.childNodes:
     #     print node.tagName + ' : ' + str(node.firstChild.nodeValue)
+    return buf
 
 def compileFunctionDeclaration(xml_data, scope, buf):
     expect_values(xml_data.firstChild, ['constructor', 'function', 'method'])
@@ -77,7 +77,7 @@ def compileFunctionDeclaration(xml_data, scope, buf):
     # destroy the nodes we compiled
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
-
+    return buf
 
 def compileFunctionArguments(parameterList, scope, buf):
     scope.pushNewScope()
@@ -100,6 +100,7 @@ def compileFunctionArguments(parameterList, scope, buf):
     # destroy the nodes we compiled
     parameterList.parentNode.removeChild(parameterList)
     parameterList.unlink()
+    return buf
 
 def compileFunctionBody(body, scope, buf):
     print("Compiling function body")
@@ -115,6 +116,7 @@ def compileFunctionBody(body, scope, buf):
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
+    return buf
     
 def compileVarDeclaration(declaration, scope, buf):
     try:
@@ -133,6 +135,7 @@ def compileVarDeclaration(declaration, scope, buf):
         scope.define(var_name, var_type, var_visibility)
         print('\tAdded variable: ' + str(var_visibility) + ' ' + str(var_type) + ' ' + str(var_name))
         data.pop(0) # discard delimiter
+    return buf
     
 
 def compileStatements(xml_data, scope, buf):
@@ -154,6 +157,7 @@ def compileStatements(xml_data, scope, buf):
             compileReturnStatement(statement, scope, buf)
         else:
             raise Exception('Unknown statement type')
+    return buf
 
 
 def compileLetStatement(xml_data, scope, buf):
@@ -176,6 +180,7 @@ def compileLetStatement(xml_data, scope, buf):
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
+    return buf
 
 def compileIfStatement(xml_data, scope, buf):
     # TODO: do we have Block-level scopes? If so, we need to create a new scope here and discard it when we return.
@@ -204,6 +209,7 @@ def compileIfStatement(xml_data, scope, buf):
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
+    return buf
 
 def compileWhileStatement(xml_data, scope, buf):
     # TODO: do we have Block-level scopes? If so, we need to create a new scope here and discard it when we return.
@@ -220,21 +226,38 @@ def compileWhileStatement(xml_data, scope, buf):
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
-
+    return buf
 
 def compileDoStatement(xml_data, scope, buf):
     expect_label(xml_data, 'doStatement')
     data = list(xml_data.childNodes)
     print('\tCompiling do statement')
     if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) ;
-        parent_class = data[1]
-        function_name = data[3]
+        # TODO: might need to 
+        function_name = str(data[1].firstChild.nodeValue.strip()) + '.' + str(data[3].firstChild.nodeValue.strip())
         params = data[5]
+    
     else:
-        function_name = data[1]
+        function_name = data[1].firstChild.nodeValue.strip()
         params = data[3]
     
-    # TODO: not sure how to implement the actual function call here.
+    # TODO: there might be another implementation detail I am missing here regarding functions' owning classes
+    for arg in params.childNodes:
+        buf = str(buf) + str(compileExpression(arg, scope, buf))
+    #     while (arg.hasChildNodes()):
+    #         arg = arg.firstChild
+
+    #     if (scope.kindOf(arg.nodeValue.strip())):
+    #         register = str(scope.kindOf(arg.firstChild.nodeValue))
+    #         index = str(scope.indexOf(arg.firstChild.nodeValue))
+    #     # TODO: missing implementation for function calls
+    #     else:
+    #         register = 'constant'
+    #         index = arg.nodeValue.strip()
+    #     buf += 'push ' + register + ' ' +  index + '\n'
+    # buf += 'call ' + str(function_name)
+
+    return buf
 
 
 def compileReturnStatement(xml_data, scope, buf):
@@ -248,37 +271,56 @@ def compileReturnStatement(xml_data, scope, buf):
         print("\t\tReturn statement has no value")
         pass    # TODO: return 0 or something of that sort
     scope.leaveScope()
-
+    return buf
 
 def compileExpression(xml_data, scope, buf):
     expect_label(xml_data, 'expression')
     terms = list(xml_data.childNodes)
     
     print('\tCompiling Expression')
-    terms = traversePostOrder(xml_data, [])
+    buf = traversePostOrder(xml_data, [], buf)
     # TODO: need something more sophisticated here. Also, should probably write the vm code directly at this point.
-    #print(terms)    
+    #print(terms)
 
-def traversePostOrder(root, exp):
+    #     while (arg.hasChildNodes()):
+    #         arg = arg.firstChild
+
+    #     if (scope.kindOf(arg.nodeValue.strip())):
+    #         register = str(scope.kindOf(arg.firstChild.nodeValue))
+    #         index = str(scope.indexOf(arg.firstChild.nodeValue))
+    #     # TODO: missing implementation for function calls
+    #     else:
+    #         register = 'constant'
+    #         index = arg.nodeValue.strip()
+    #     buf += 'push ' + register + ' ' +  index + '\n'
+    # buf += 'call ' + str(function_name)
+    print(buf)
+    return buf
+
+def traversePostOrder(root, exp, buf):
     if (root.hasChildNodes()):
+        temp = ''
         for child in root.childNodes:
-            traversePostOrder(child, exp)
+            while (not child.nodeValue):
+                child = child.firstChild
+
+            temp = str(temp) + str(traversePostOrder(child, exp, buf))
+        return str(buf) + str(temp)
     else:
-        exp.append(root.nodeValue.strip())
-    
-    return exp
+        # exp.append(root.nodeValue.strip())
+        return 'push ' + root.nodeValue.strip() + ' \n'
 
 
 
 
 # ---------------------- VM code generation -------------------------
-def writePush(mem_segment, index):
+def writePush(mem_segment, index, buf):
     pass # TODO: writes a VM push command
 
-def writePop(mem_segment, index):
+def writePop(mem_segment, index, buf):
     pass # TODO: writes a VM pop command
 
-def writeArithmetic(expression_root):
+def writeArithmetic(expression_root, buf):
     op = expression_root.data # TODO: actually need to get the entire expression here, so print the whole thing
 
     if (op.isdigit()): # if op is identifier, keyword or constant
@@ -288,20 +330,20 @@ def writeArithmetic(expression_root):
     # if op is unary, return writeArithmetic(op1) + x
     # if op is a function call, do writeArithmetic on each parameter and then call the function
 
-def writeLabel(label):
+def writeLabel(label, buf):
     pass # write a VM label command
 
-def writeGoto(label):
+def writeGoto(label, buf):
     pass # write a VM goto command
 
-def writeIf(label):
+def writeIf(label, buf):
     pass # write a VM if-goto command
 
-def writeCall(function_name, argument_count):
+def writeCall(function_name, argument_count, buf):
     pass # write a VM call command
 
-def writeFunction(function_name, argument_count):
+def writeFunction(function_name, argument_count, buf):
     pass # write a VM function (definition) command
 
-def writeReturn():
+def writeReturn(buf):
     pass # write a VM return statement
