@@ -87,14 +87,15 @@ def compileFunctionArguments(parameterList, scope, buf):
     if (len(params) == 1 and params[0].nodeValue == '\n'):
         print('\tFunction accepts zero arguments')
     else:
-        print('\tFunction accepts' + str(len(params) / 2) + 'arguments') # TODO: not accurate, since ',' also appears. Better to use a while loop.
-        for node in params:
-            print node  # TODO: parse the parameters and add them to the scope
+        print('\tFunction accepts ' + str(len(params) / 2) + ' arguments') # TODO: not accurate, since ',' also appears. Better to use a while loop.
+        while (params):
             var_visibility = 'argument' # TODO: verify this; it should be defined as a local variable but accessed from ARG register
-            var_type = node
-            var_name = node
+            var_type = params.pop(0).firstChild.nodeValue.strip()
+            var_name = params.pop(0).firstChild.nodeValue.strip()
+            if (params): # discard delimiter, if one exists (last entry has none)
+                params.pop(0)
             scope.define(var_name, var_type, var_visibility)
-            print('Added variable [' + var_type + ' ' + var_name +'] to local scope')
+            print('\tAdded variable __' + str(var_type) + ' ' + str(var_name) +'__ to local scope as function parameter')
 
     # destroy the nodes we compiled
     parameterList.parentNode.removeChild(parameterList)
@@ -116,13 +117,22 @@ def compileFunctionBody(body, scope, buf):
         data.pop(0)
     
 def compileVarDeclaration(declaration, scope, buf):
-    expect_label(declaration, 'varDec')
+    try:
+        expect_label(declaration, 'varDec')
+    except Exception:
+        expect_label(declaration, 'classVarDec')
+    
     data = list(declaration.childNodes)
     # TODO: implement this; will be easier to test on a more complex source file
     print ('Compiling variable declaration section')
-    for n in data:
-        print n
-    raise NotImplementedError()
+    var_visibility = data.pop(0).firstChild.nodeValue.strip()
+    var_type = data.pop(0).firstChild.nodeValue.strip()
+
+    while (data):
+        var_name = data.pop(0).firstChild.nodeValue.strip()
+        scope.define(var_name, var_type, var_visibility)
+        print('\tAdded variable: ' + str(var_visibility) + ' ' + str(var_type) + ' ' + str(var_name))
+        data.pop(0) # discard delimiter
     
 
 def compileStatements(xml_data, scope, buf):
@@ -135,16 +145,12 @@ def compileStatements(xml_data, scope, buf):
         if (statement_type == 'letStatement'):
             compileLetStatement(statement, scope, buf)
         elif (statement_type == 'ifStatement'):
-            print('\tif statement')
             compileIfStatement(statement, scope, buf)
         elif (statement_type == 'whileStatement'):
-            print('\twhile statement')
             compileWhileStatement(statement, scope, buf)
         elif (statement_type == 'doStatement'):
-            print('\tdo statement')
             compileDoStatement(statement, scope, buf)
         elif (statement_type == 'returnStatement'):
-            print('\treturn statement')
             compileReturnStatement(statement, scope, buf)
         else:
             raise Exception('Unknown statement type')
@@ -165,7 +171,6 @@ def compileLetStatement(xml_data, scope, buf):
     else:
         rvalue_exp = data[3]
 
-    print (rvalue_exp)
     compileExpression(rvalue_exp, scope, buf)
 
     # remove nodes for garbage collection
@@ -180,37 +185,73 @@ def compileIfStatement(xml_data, scope, buf):
     cond_exp = data[2]
     
     statement_body = data[4]
-    # TODO: need to check the presence of an Else block.
+
     if (len(data) == 11):
         print('If block with Else statement')
         else_statement = data[9]
+        # TODO: might need to change the internal ordering of some function calls here
+        compileExpression(cond_exp, scope, buf)
+        compileStatements(statement_body, scope, buf)
+        compileStatements(else_statements, scope, buf)
     elif (len(data) == 7):
         print('If block without an Else statement')
+        # TODO: might need to change the internal ordering of some function calls here
+        compileExpression(cond_exp, scope, buf)
+        compileStatements(statement_body, scope, buf)
     else:
         raise Exception('bad node count in if statement')
-
-    # TODO: might need to change the internal ordering of some function calls here
-    compileExpression(cond_exp, scope, buf)
-    compileStatements(statement_body, scope, buf)
-    compileStatements(else_statements, scope, buf)
-
 
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
 
 def compileWhileStatement(xml_data, scope, buf):
-    pass
+    # TODO: do we have Block-level scopes? If so, we need to create a new scope here and discard it when we return.
+    expect_label(xml_data, 'whileStatement')
+    print('\tCompiling while statement')
+    data = list(xml_data.childNodes)
+    
+    cond_exp = data[2]
+    statement_body = data[4]
+    
+    compileExpression(cond_exp, scope, buf)
+    compileStatements(statement_body, scope, buf)
+
+    # remove nodes for garbage collection
+    xml_data.parentNode.removeChild(xml_data)
+    xml_data.unlink()
+
 
 def compileDoStatement(xml_data, scope, buf):
-    pass
+    expect_label(xml_data, 'doStatement')
+    data = list(xml_data.childNodes)
+    print('\tCompiling do statement')
+    if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) ;
+        parent_class = data[1]
+        function_name = data[3]
+        params = data[5]
+    else:
+        function_name = data[1]
+        params = data[3]
+    
+    # TODO: not sure how to implement the actual function call here.
+
 
 def compileReturnStatement(xml_data, scope, buf):
-    pass
+    expect_label(xml_data, 'returnStatement')
+    data = list(xml_data.childNodes)
+    print("\tCompiling return statement")
+    if (data[1].tagName == 'expression'):
+        print("\t\tReturn statement returns value")
+        compileExpression(data[1], scope, buf)
+    else:
+        print("\t\tReturn statement has no value")
+        pass    # TODO: return 0 or something of that sort
+    scope.leaveScope()
 
 def compileExpression(xml_data, scope, buf):
-    print('Compiling Expression')
-    pass
+    print('\tCompiling Expression')
+    #raise NotImplementedError()
 
 # ---------------------- VM code generation -------------------------
 def writePush(mem_segment, index):

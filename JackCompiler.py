@@ -13,8 +13,8 @@ if __name__ == '__main__':
 
     xml_data, file_names = analyze(root_dir)
 
-    # debug_mode = False
-    debug_mode = True
+    debug_mode = False
+    # debug_mode = True
     if debug_mode:
         print("Compiler Module debug mode activated\n")
         print("=" * 30)

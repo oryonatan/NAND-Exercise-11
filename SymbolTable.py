@@ -15,9 +15,9 @@ class ScopeChain:
 
     def define(self, var_name, var_type, var_visibility):
         if (var_visibility in ['static', 'field']):
-            self.chain[0][var_name] = (var_name, var_type, var_visibility, len(self.class_scope) + 1)
+            self.chain[0][var_name] = (var_name, var_type, var_visibility, len(self.chain[0]) + 1)
         else:
-            self.chain[-1][var_name] = (var_name, var_type, var_visibility, len(self.current_scope) + 1)
+            self.chain[-1][var_name] = (var_name, var_type, var_visibility, len(self.chain[-1]) + 1)
 
     def varCount(self, visibility):
         if (visibility in ['static', 'field']):

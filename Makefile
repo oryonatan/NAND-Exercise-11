@@ -1,5 +1,8 @@
-tiny:
+easy:
 	python JackCompiler.py Seven
+
+moderate:
+	python JackCompiler.py Pong
 
 testSeven:
 	@rm -f sevenOutput.log
@@ -25,10 +28,7 @@ testConvertToBin:
 	@rm -f convertToBinOutput.log
 	python JackCompiler.py ConvertToBin > convertToBinOutput.log
 
-tokens:
-	python JackCompiler.py Pong > pongNaive.xml
-
-test: testSeven testPong testAverage testSquare testComplexArrays testConvertToBin tokens
+test: testSeven testPong testAverage testSquare testComplexArrays testConvertToBin easy moderate
 
 clean:
 	@rm -f sevenOutput.log
