@@ -173,7 +173,31 @@ def compileLetStatement(xml_data, scope, buf):
     xml_data.unlink()
 
 def compileIfStatement(xml_data, scope, buf):
-    pass
+    # TODO: do we have Block-level scopes? If so, we need to create a new scope here and discard it when we return.
+    expect_label(xml_data, 'ifStatement')
+    print('\tCompiling if statement')
+    data = list(xml_data.childNodes)
+    cond_exp = data[2]
+    
+    statement_body = data[4]
+    # TODO: need to check the presence of an Else block.
+    if (len(data) == 11):
+        print('If block with Else statement')
+        else_statement = data[9]
+    elif (len(data) == 7):
+        print('If block without an Else statement')
+    else:
+        raise Exception('bad node count in if statement')
+
+    # TODO: might need to change the internal ordering of some function calls here
+    compileExpression(cond_exp, scope, buf)
+    compileStatements(statement_body, scope, buf)
+    compileStatements(else_statements, scope, buf)
+
+
+    # remove nodes for garbage collection
+    xml_data.parentNode.removeChild(xml_data)
+    xml_data.unlink()
 
 def compileWhileStatement(xml_data, scope, buf):
     pass

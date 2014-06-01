@@ -4,8 +4,7 @@ from Tokenizer import tokenize
 from Parser import parse
 
 def analyze(root_dir):
-
-
+    
     if (len(root_dir) == 0):
         print("No input file name")
         exit()
@@ -19,5 +18,8 @@ def analyze(root_dir):
 
     for i in range(len(tokenized_data)):
         parsed_files.append(parse(tokenized_data[i]))
+        # print(('*' * 20) + "\tFile #" + str(i) + '\t' + ('*' * 20))
+        # print(parsed_files[-1].toprettyxml())
 
+    
     return parsed_files, file_names

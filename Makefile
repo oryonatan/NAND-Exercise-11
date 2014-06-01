@@ -25,7 +25,10 @@ testConvertToBin:
 	@rm -f convertToBinOutput.log
 	python JackCompiler.py ConvertToBin > convertToBinOutput.log
 
-test: testSeven testPong testAverage testSquare testComplexArrays testConvertToBin
+tokens:
+	python JackCompiler.py Pong > pongNaive.xml
+
+test: testSeven testPong testAverage testSquare testComplexArrays testConvertToBin tokens
 
 clean:
 	@rm -f sevenOutput.log
