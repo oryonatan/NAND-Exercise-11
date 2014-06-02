@@ -239,7 +239,6 @@ def compileDoStatement(xml_data, scope):
     print('\tCompiling do statement')
     buf = ''
     if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) ;
-        # TODO: might need to 
         function_name = str(data[1].firstChild.nodeValue.strip()) + '.' + str(data[3].firstChild.nodeValue.strip())
         params = data[5]
     
@@ -250,19 +249,6 @@ def compileDoStatement(xml_data, scope):
     # TODO: there might be another implementation detail I am missing here regarding functions' owning classes
     for arg in params.childNodes:
         buf += str(compileExpression(arg, scope))
-    #     while (arg.hasChildNodes()):
-    #         arg = arg.firstChild
-
-    #     if (scope.kindOf(arg.nodeValue.strip())):
-    #         register = str(scope.kindOf(arg.firstChild.nodeValue))
-    #         index = str(scope.indexOf(arg.firstChild.nodeValue))
-    #     # TODO: missing implementation for function calls
-    #     else:
-    #         register = 'constant'
-    #         index = arg.nodeValue.strip()
-    #     buf += 'push ' + register + ' ' +  index + '\n'
-    # buf += 'call ' + str(function_name)
-
     return buf
 
 
@@ -312,23 +298,23 @@ def compileExpression(xml_data, scope):
             raise Exception('Cannot parse single-term expression')
     
     elif (len(terms) == 2): # expression is an unary operation
-        operation = str(terms[0].firstChild.nodeValue).strip()
+        operation = str(terms[0].firstChild.nodeValue)
         term = extractTerm(terms[1], scope)
         print str(term) + str(operation) + '<-- len 2'
         buf += str(term) + str(operation)
     
     elif (len(terms) == 3): # expression is (term op term)
-        operation = str(terms[1].firstChild.nodeValue).strip()
+        operation = str(terms[1].firstChild.nodeValue).strip() + '\n'
         left_term = extractTerm(terms[0], scope)
         right_term = extractTerm(terms[2], scope)
-        print 'term1 = {' + str(left_term).strip() + '} term2 = {' + str(right_term).strip() + '}  operation{' + str(operation).strip() + '}\t <-- len 3'
-        buf += str(left_term) + ' ' + str(right_term) + ' ' + str(operation)
+        print 'term1 = {' + str(left_term) + '} term2 = {' + str(right_term) + '}  operation{' + str(operation) + '}\t <-- len 3'
+        buf += str(left_term) + str(right_term) + str(operation)
     
     elif (len(terms) == 4): # expression is array[expression]
         array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
-        array_exp = compileExpression(terms[2], scope)
-        print str(array_name) + ' ' + str(array_exp) + ' <-- temporary code, actually incorrect'
-        buf += str(array_name) + ' ' + str(array_exp)
+        array_exp = str(compileExpression(terms[2], scope)).strip()
+        print str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect'
+        buf += str(array_name) + str(array_exp)
     else:
         raise Exception('Cannot recognize expression')
 
@@ -338,7 +324,7 @@ def extractTerm(root, scope):
     expect_label(root, 'term')
     term = root.firstChild
     label = term.nodeName
-    print(label)
+    #print(label)
 
     if (label == 'keywordConstant'):    # generate constant value value
         print("\t\tIn keyword constant")
@@ -358,79 +344,5 @@ def extractTerm(root, scope):
         if (str(term.firstChild.nodeValue).strip() == '('):
             return compileExpression(term.nextSibling, scope)
         print('\t\tOther symbol')
-        return
+    
     raise Exception('Unknown term')
-
-def traversePostOrder(root, buf):
-    if (not root.hasChildNodes()):
-        print('*')
-        print(root.nodeValue.strip())
-        return(root.nodeValue.strip())
-
-    child_nodes = list(root.childNodes)
-    if (len(child_nodes) == 3): # term_1 op term_2
-        left_term = traversePostOrder(child_nodes[0], buf)
-        right_term = traversePostOrder(child_nodes[2], buf)
-        op = traversePostOrder(child_nodes[1], buf)
-        return str(left_term) + str(right_term) + str(op)
-
-    elif (len(child_nodes) == 2): # op term
-        op = traversePostOrder(child_nodes[0])
-        term = traversePostOrder(child_nodes[1])
-        return str(term) + str(op)
-
-    elif (len(child_nodes) == 1): # term
-        node = child_nodes[0]
-        label = node.tagName
-        if (label == 'integerConstant'):
-            print(node.firstChild.nodeValue.strip())
-            return node.firstChild.nodeValue.strip()
-        elif (label == 'stringConstant'):
-            pass    # TODO: create a string constant
-        elif (label == 'keywordConstant'):
-            print(node.firstChild.nodeValue.strip())    # TODO: create manual representation
-            return node.firstChild.nodeValue.strip()
-        elif (label == 'identifier'):
-            pass
-        elif (label == 'symbol'):
-            pass
-        else:
-            print(label)
-            raise NotImplementedError
-
-
-
-# ---------------------- VM code generation -------------------------
-def writePush(mem_segment, index, buf):
-    pass # TODO: writes a VM push command
-
-def writePop(mem_segment, index, buf):
-    pass # TODO: writes a VM pop command
-
-def writeArithmetic(expression_root, buf):
-    op = expression_root.data # TODO: actually need to get the entire expression here, so print the whole thing
-
-    if (op.isdigit()): # if op is identifier, keyword or constant
-        return 'push ' + op
-
-    # if op is binary of the form op_1 x op_2, return writeArithmetic(op1) + writeArithmetic(op2) + x
-    # if op is unary, return writeArithmetic(op1) + x
-    # if op is a function call, do writeArithmetic on each parameter and then call the function
-
-def writeLabel(label, buf):
-    pass # write a VM label command
-
-def writeGoto(label, buf):
-    pass # write a VM goto command
-
-def writeIf(label, buf):
-    pass # write a VM if-goto command
-
-def writeCall(function_name, argument_count, buf):
-    pass # write a VM call command
-
-def writeFunction(function_name, argument_count, buf):
-    pass # write a VM function (definition) command
-
-def writeReturn(buf):
-    pass # write a VM return statement
