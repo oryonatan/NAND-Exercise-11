@@ -5,6 +5,10 @@ class ScopeChain:
     def __init__(self):
         self.class_scope = {}
         self.chain = [self.class_scope]
+        self.class_name = ''
+
+    def setClassName(self, name):
+        self.class_name = name.strip()
 
     def pushNewScope(self):
         current_scope = {}
@@ -38,3 +42,6 @@ class ScopeChain:
                 return self.chain[i][var_name][3]
         else:
             return None
+
+    def getClassName(self):
+        return self.class_name

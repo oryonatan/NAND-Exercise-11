@@ -26,6 +26,7 @@ def encode(xml_data):
 def compileClassDeclaration(xml_data, scope):
     class_data = list(xml_data.childNodes)
     class_name = class_data[1].firstChild.nodeValue
+    scope.setClassName(class_name)
     buf = ''
     print('Recognized Class Declaration')
     print('\tClass name:' + str(class_name))
@@ -69,13 +70,17 @@ def compileFunctionDeclaration(xml_data, scope):
     function_declare_mode = func_data[0].firstChild.nodeValue.strip()
     function_return_type = func_data[1].firstChild.nodeValue.strip()
     function_name = func_data[2].firstChild.nodeValue.strip()
-    function_args = func_data[4] # parse parameter list
-    function_body = func_data[6] # parse function body
+    function_args = compileFunctionArguments(func_data[4], scope)
+    function_body = compileFunctionBody(func_data[6], scope) # parse function body
     print('\tFunction data: (' + function_declare_mode + ') ' + function_return_type + ' ' + function_name)
     # TODO: function names are not added to scope, right?
+    print(function_args)
+    arg_count = 0
 
-    buf += compileFunctionArguments(function_args, scope)
-    buf += compileFunctionBody(function_body, scope)
+
+    buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(arg_count) + '\n'
+    buf += function_args
+    buf += function_body
 
     # destroy the nodes we compiled
     xml_data.parentNode.removeChild(xml_data)
@@ -91,8 +96,8 @@ def compileFunctionArguments(parameterList, scope):
     if (len(params) == 1 and params[0].nodeValue == '\n'):
         print('\tFunction accepts zero arguments')
     else:
-        print('\tFunction accepts ' + str(len(params) / 2) + ' arguments') # TODO: not accurate, since ',' also appears. Better to use a while loop.
         while (params):
+            param_count += 1
             var_visibility = 'argument' # TODO: verify this; it should be defined as a local variable but accessed from ARG register
             var_type = params.pop(0).firstChild.nodeValue.strip()
             var_name = params.pop(0).firstChild.nodeValue.strip()
@@ -250,7 +255,9 @@ def compileDoStatement(xml_data, scope):
     # TODO: there might be another implementation detail I am missing here regarding functions' owning classes
     for arg in params.childNodes:
         buf += str(compileExpression(arg, scope))
-    buf += 'call ' + function_name + '\n'
+    params_count = len(params.childNodes)
+    buf += 'call ' + function_name + ' ' + str(params_count) + '\n'
+    # TODO: need to do something regarding the function return type.
     return buf
 
 
