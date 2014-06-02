@@ -1,7 +1,6 @@
 __author__ = 'larrath'
 
 from SymbolTable import ScopeChain
-import xml.dom.minidom as minidom
 
 def expect_label(xml_data, desired_value):
     if (xml_data.nodeName.strip() != desired_value):
@@ -39,7 +38,7 @@ def compileClassDeclaration(xml_data, scope):
         elif (operation == 'classVarDec'):
             buf += compileVarDeclaration(class_data[0], scope)
         elif (operation == 'symbol' and class_data[0].firstChild.nodeValue.strip() == '}'):
-            print 'Finished compiling class subroutines and variables'
+            print('Finished compiling class subroutines and variables')
         else:
             raise Exception('Unknown operation in class body')
         class_data.pop(0)
@@ -96,7 +95,6 @@ def compileFunctionArguments(parameterList, scope):
         print('\tFunction accepts zero arguments')
     else:
         while (params):
-            param_count += 1
             var_visibility = 'argument' # TODO: verify this; it should be defined as a local variable but accessed from ARG register
             var_type = params.pop(0).firstChild.nodeValue.strip()
             var_name = params.pop(0).firstChild.nodeValue.strip()
@@ -324,7 +322,7 @@ def compileExpression(xml_data, scope):
     elif (len(terms) == 4): # expression is array[expression]
         array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
         array_exp = str(compileExpression(terms[2], scope)).strip()
-        print str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect'
+        print(str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect')
         buf += str(array_name) + str(array_exp)
     else:
         raise Exception('Cannot recognize expression')
@@ -352,9 +350,9 @@ def extractTerm(root, scope):
     elif (label == 'symbol'):           # parentheses around expression
         print('\t\tIn symbol sub-block')
         return handleOpSymbol(str(term.firstChild.nodeValue).strip(), term, scope)
-        if (sym == '('):
-            return compileExpression(term.nextSibling, scope)
-        print('\t\tOther symbol')
+        # if (sym == '('):
+        #     return compileExpression(term.nextSibling, scope)
+        # print('\t\tOther symbol')
     
     raise Exception('Unknown term')
 
@@ -382,3 +380,6 @@ def keywordConstant(keyword):
     elif (keyword == 'true'):
         return 'push constant 0\nneg\n'
     raise NotImplementedError
+
+def stringConstant(string):
+    pass
