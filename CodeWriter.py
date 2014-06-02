@@ -234,6 +234,7 @@ def compileWhileStatement(xml_data, scope):
     return buf
 
 def compileDoStatement(xml_data, scope):
+    # TODO: need to add parameter count
     expect_label(xml_data, 'doStatement')
     data = list(xml_data.childNodes)
     print('\tCompiling do statement')
@@ -249,6 +250,7 @@ def compileDoStatement(xml_data, scope):
     # TODO: there might be another implementation detail I am missing here regarding functions' owning classes
     for arg in params.childNodes:
         buf += str(compileExpression(arg, scope))
+    buf += 'call ' + function_name + '\n'
     return buf
 
 
@@ -263,6 +265,7 @@ def compileReturnStatement(xml_data, scope):
         buf += compileExpression(data[1], scope)
     else:
         print("\t\tReturn statement has no value")
+        buf += 'push constant 0'
         pass    # TODO: return 0 or something of that sort
     scope.leaveScope()
     return buf
@@ -278,14 +281,14 @@ def compileExpression(xml_data, scope):
         label = term.nodeName
 
         if (label == 'keywordConstant'):    # generate constant value value
-            print("\t\tIn keyword constant")
+            # print("\t\tIn keyword constant")
             buf += str(keywordConstant(str(term.firstChild.nodeValue).strip()))
         elif (label == 'integerConstant'):  # constant number
-            print("\t\tIn integer constant")
-            buf += str('push ' + str(term.firstChild.nodeValue).strip() + '\n')
+            # print("\t\tIn integer constant")
+            buf += str('push constant ' + str(term.firstChild.nodeValue).strip() + '\n')
 
         elif (label == 'stringConstant'):   # generate string
-            print('\t\tIn string constant')
+            # print('\t\tIn string constant')
             buf += str(stringConstant(str(term.firstChild.nodeValue).strip()))
         elif (label == 'identifier'):       # load variable from scope
             print('\t\tIn identifier sub-block')
@@ -296,18 +299,19 @@ def compileExpression(xml_data, scope):
             pass
         else:
             raise Exception('Cannot parse single-term expression')
-    
+        #return
     elif (len(terms) == 2): # expression is an unary operation
-        operation = str(terms[0].firstChild.nodeValue)
+        
+        operation = handleOpSymbol(str(terms[0].firstChild.nodeValue).strip(), terms[0], scope)
         term = extractTerm(terms[1], scope)
-        print str(term) + str(operation) + '<-- len 2'
+        # print str(term) + str(operation) + '<-- len 2'
         buf += str(term) + str(operation)
     
     elif (len(terms) == 3): # expression is (term op term)
-        operation = str(terms[1].firstChild.nodeValue).strip() + '\n'
+        operation = handleOpSymbol(str(terms[1].firstChild.nodeValue).strip(), terms[1], scope)
         left_term = extractTerm(terms[0], scope)
         right_term = extractTerm(terms[2], scope)
-        print 'term1 = {' + str(left_term) + '} term2 = {' + str(right_term) + '}  operation{' + str(operation) + '}\t <-- len 3'
+        # print 'term1 = {' + str(left_term) + '} term2 = {' + str(right_term) + '}  operation{' + str(operation) + '}\t <-- len 3'
         buf += str(left_term) + str(right_term) + str(operation)
     
     elif (len(terms) == 4): # expression is array[expression]
@@ -324,16 +328,15 @@ def extractTerm(root, scope):
     expect_label(root, 'term')
     term = root.firstChild
     label = term.nodeName
-    #print(label)
 
     if (label == 'keywordConstant'):    # generate constant value value
-        print("\t\tIn keyword constant")
+        #print("\t\tIn keyword constant")
         return keywordConstant(str(term.firstChild.nodeValue).strip())
     elif (label == 'integerConstant'):  # constant number
-        print("\t\tIn integer constant")
-        return 'push ' + str(term.firstChild.nodeValue).strip() + '\n'
+        #print("\t\tIn integer constant")
+        return 'push constant ' + str(term.firstChild.nodeValue).strip() + '\n'
     elif (label == 'stringConstant'):   # generate string
-        print('\t\tIn string constant')
+        #print('\t\tIn string constant')
         return stringConstant(str(term.firstChild.nodeValue).strip())
     elif (label == 'identifier'):       # load variable from scope
         print('\t\tIn identifier sub-block')
@@ -341,8 +344,34 @@ def extractTerm(root, scope):
         pass
     elif (label == 'symbol'):           # parentheses around expression
         print('\t\tIn symbol sub-block')
-        if (str(term.firstChild.nodeValue).strip() == '('):
+        return handleOpSymbol(str(term.firstChild.nodeValue).strip(), term, scope)
+        if (sym == '('):
             return compileExpression(term.nextSibling, scope)
         print('\t\tOther symbol')
     
     raise Exception('Unknown term')
+
+def handleOpSymbol(sym, node, scope):
+    if (sym == '('):
+        return compileExpression(node.nextSibling, scope)
+    elif (sym == '+'):
+        return 'add\n'
+    elif (sym == '-'):
+        return 'sub\n'
+    elif (sym == '*'):
+        return 'call Math.multiply 2\n'
+    elif (sym == '/'):
+        return 'call Math.divide 2\n'
+    elif (sym == '&'):
+        return 'bitwise and\n'
+    elif (sym == '|'):
+        return 'bitwise or\n'
+
+    raise NotImplementedError
+
+def keywordConstant(keyword):
+    if (keyword in ['null', 'false']):
+        return 'push constant 0\n'
+    elif (keyword == 'true'):
+        return 'push constant 0\nneg\n'
+    raise NotImplementedError
