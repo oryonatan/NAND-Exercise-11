@@ -4,8 +4,8 @@ from SymbolTable import ScopeChain
 import xml.dom.minidom as minidom
 
 def expect_label(xml_data, desired_value):
-    if (xml_data.tagName.strip() != desired_value):
-        raise Exception('Label should be ' + str(desired_value) + '; instead got ' + xml_data.tagName)
+    if (xml_data.nodeName.strip() != desired_value):
+        raise Exception('Label should be ' + str(desired_value) + '; instead got ' + xml_data.nodeName)
 
 def expect_values(xml_data, desired_values):
     if (str(xml_data.firstChild.nodeValue).strip() not in desired_values):
@@ -13,18 +13,20 @@ def expect_values(xml_data, desired_values):
 
 def encode(xml_data):
     expect_label(xml_data, 'class')
-    result = ''
+    
     # parsing new class
     scope = ScopeChain()
     main_nodes = list(xml_data.childNodes)
 
-    compileClassDeclaration(xml_data, scope, result)
+    result = compileClassDeclaration(xml_data, scope)
+    print('Encoding complete. Result:\n')
+    print(result)
     return result
 
-def compileClassDeclaration(xml_data, scope, buf):
+def compileClassDeclaration(xml_data, scope):
     class_data = list(xml_data.childNodes)
     class_name = class_data[1].firstChild.nodeValue
-    
+    buf = ''
     print('Recognized Class Declaration')
     print('\tClass name:' + str(class_name))
     print('\tCompiling class body')
@@ -33,9 +35,9 @@ def compileClassDeclaration(xml_data, scope, buf):
     while (class_data):
         operation = class_data[0].tagName
         if (operation == 'subroutineDec'):
-            compileClassBody(class_data[0], scope, buf)
+            buf += compileClassBody(class_data[0], scope)
         elif (operation == 'classVarDec'):
-            compileVarDeclaration(class_data[0], scope, buf)
+            buf += compileVarDeclaration(class_data[0], scope)
         elif (operation == 'symbol' and class_data[0].firstChild.nodeValue.strip() == '}'):
             print 'Finished compiling class subroutines and variables'
         else:
@@ -43,25 +45,26 @@ def compileClassDeclaration(xml_data, scope, buf):
         class_data.pop(0)
     return buf
 
-def compileClassBody(xml_data, scope, buf):
+def compileClassBody(xml_data, scope):
     expect_label(xml_data, 'subroutineDec')
     print('Recognized class body')
-    
+    buf = ''
     while (xml_data.hasChildNodes()):
         print('\tbody data length: ' + str(len(xml_data.childNodes)))
         current_top = xml_data.childNodes[0]
         command = str(current_top.firstChild.nodeValue).strip()
         if (command in ['constructor', 'function', 'method']):
-            compileFunctionDeclaration(current_top.parentNode, scope, buf)
+            buf += compileFunctionDeclaration(current_top.parentNode, scope)
     
     # for node in xml_data.childNodes:
     #     print node.tagName + ' : ' + str(node.firstChild.nodeValue)
     return buf
 
-def compileFunctionDeclaration(xml_data, scope, buf):
+def compileFunctionDeclaration(xml_data, scope):
     expect_values(xml_data.firstChild, ['constructor', 'function', 'method'])
     print("Recognized function declaration")
     func_data = list(xml_data.childNodes)
+    buf = ''
     
     function_declare_mode = func_data[0].firstChild.nodeValue.strip()
     function_return_type = func_data[1].firstChild.nodeValue.strip()
@@ -71,18 +74,19 @@ def compileFunctionDeclaration(xml_data, scope, buf):
     print('\tFunction data: (' + function_declare_mode + ') ' + function_return_type + ' ' + function_name)
     # TODO: function names are not added to scope, right?
 
-    compileFunctionArguments(function_args, scope, buf)
-    compileFunctionBody(function_body, scope, buf)
+    buf += compileFunctionArguments(function_args, scope)
+    buf += compileFunctionBody(function_body, scope)
 
     # destroy the nodes we compiled
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
     return buf
 
-def compileFunctionArguments(parameterList, scope, buf):
+def compileFunctionArguments(parameterList, scope):
     scope.pushNewScope()
     expect_label(parameterList, 'parameterList')
     print('Compiling parameter list')
+    buf = '' # TODO add VM code here
     params = list(parameterList.childNodes)
     if (len(params) == 1 and params[0].nodeValue == '\n'):
         print('\tFunction accepts zero arguments')
@@ -102,23 +106,23 @@ def compileFunctionArguments(parameterList, scope, buf):
     parameterList.unlink()
     return buf
 
-def compileFunctionBody(body, scope, buf):
+def compileFunctionBody(body, scope):
     print("Compiling function body")
     data = list(body.childNodes)
     data = data[1:-1]   # remove first and last elements ( '{' and '}' )
-    # TODO: need to compile Variable Declaration and Statements, all using the same scope.
+    buf = ''
     while (data):
         action = data[0].tagName
         if (action == 'varDec'):
-            compileVarDeclaration(data[0], scope, buf)
+            buf += compileVarDeclaration(data[0], scope)
         elif (action == 'statements'):
-            compileStatements(data[0], scope, buf)
+            buf += compileStatements(data[0], scope)
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
     return buf
     
-def compileVarDeclaration(declaration, scope, buf):
+def compileVarDeclaration(declaration, scope):
     try:
         expect_label(declaration, 'varDec')
     except Exception:
@@ -135,74 +139,75 @@ def compileVarDeclaration(declaration, scope, buf):
         scope.define(var_name, var_type, var_visibility)
         print('\tAdded variable: ' + str(var_visibility) + ' ' + str(var_type) + ' ' + str(var_name))
         data.pop(0) # discard delimiter
-    return buf
+    raise NotImplementedError('Need to decide and implement value return')
     
 
-def compileStatements(xml_data, scope, buf):
+def compileStatements(xml_data, scope):
     expect_label(xml_data, 'statements')
     data = list(xml_data.childNodes)
     print ('Compiling statement container')
+    buf = ''
     for statement in data:
         statement_type = statement.tagName
 
         if (statement_type == 'letStatement'):
-            compileLetStatement(statement, scope, buf)
+            buf += compileLetStatement(statement, scope)
         elif (statement_type == 'ifStatement'):
-            compileIfStatement(statement, scope, buf)
+            buf += compileIfStatement(statement, scope)
         elif (statement_type == 'whileStatement'):
-            compileWhileStatement(statement, scope, buf)
+            buf += compileWhileStatement(statement, scope)
         elif (statement_type == 'doStatement'):
-            compileDoStatement(statement, scope, buf)
+            buf += compileDoStatement(statement, scope)
         elif (statement_type == 'returnStatement'):
-            compileReturnStatement(statement, scope, buf)
+            buf += compileReturnStatement(statement, scope)
         else:
             raise Exception('Unknown statement type')
     return buf
 
 
-def compileLetStatement(xml_data, scope, buf):
+def compileLetStatement(xml_data, scope):
     expect_label(xml_data, 'letStatement')
     print('\tCompiling let statement')
     data = list(xml_data.childNodes)
     var_name = data[1]
-    
+    buf = ''
     if (data[2].firstChild.nodeValue.strip() == '['):   # accessing array element
         print('\t\tAccessing array')
         array_exp = data[3]
         rvalue_exp = data[6]
 
-        compileExpression(array_exp, scope, buf)
+        buf += compileExpression(array_exp, scope)
     else:
         rvalue_exp = data[3]
 
-    compileExpression(rvalue_exp, scope, buf)
+    buf += compileExpression(rvalue_exp, scope)
 
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
     return buf
 
-def compileIfStatement(xml_data, scope, buf):
+def compileIfStatement(xml_data, scope):
     # TODO: do we have Block-level scopes? If so, we need to create a new scope here and discard it when we return.
     expect_label(xml_data, 'ifStatement')
     print('\tCompiling if statement')
     data = list(xml_data.childNodes)
     cond_exp = data[2]
-    
+    buf = ''
     statement_body = data[5]
 
     if (len(data) == 11):
         print('If block with Else statement')
         else_statement = data[9]
         # TODO: might need to change the internal ordering of some function calls here
-        compileExpression(cond_exp, scope, buf)
-        compileStatements(statement_body, scope, buf)
-        compileStatements(else_statement, scope, buf)
+        buf += compileExpression(cond_exp, scope)
+        buf += compileStatements(statement_body, scope)
+        buf += compileStatements(else_statement, scope)
     elif (len(data) == 7):
         print('If block without an Else statement')
         # TODO: might need to change the internal ordering of some function calls here
-        compileExpression(cond_exp, scope, buf)
-        compileStatements(statement_body, scope, buf)
+        buf += compileExpression(cond_exp, scope)
+        buf += compileStatements(statement_body, scope)
     else:
         raise Exception('bad node count in if statement')
 
@@ -211,27 +216,28 @@ def compileIfStatement(xml_data, scope, buf):
     xml_data.unlink()
     return buf
 
-def compileWhileStatement(xml_data, scope, buf):
+def compileWhileStatement(xml_data, scope):
     # TODO: do we have Block-level scopes? If so, we need to create a new scope here and discard it when we return.
     expect_label(xml_data, 'whileStatement')
     print('\tCompiling while statement')
     data = list(xml_data.childNodes)
-    
+    buf = ''
     cond_exp = data[2]
     statement_body = data[4]
     
-    compileExpression(cond_exp, scope, buf)
-    compileStatements(statement_body, scope, buf)
+    buf += compileExpression(cond_exp, scope)
+    buf += compileStatements(statement_body, scope)
 
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
     return buf
 
-def compileDoStatement(xml_data, scope, buf):
+def compileDoStatement(xml_data, scope):
     expect_label(xml_data, 'doStatement')
     data = list(xml_data.childNodes)
     print('\tCompiling do statement')
+    buf = ''
     if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) ;
         # TODO: might need to 
         function_name = str(data[1].firstChild.nodeValue.strip()) + '.' + str(data[3].firstChild.nodeValue.strip())
@@ -243,7 +249,7 @@ def compileDoStatement(xml_data, scope, buf):
     
     # TODO: there might be another implementation detail I am missing here regarding functions' owning classes
     for arg in params.childNodes:
-        buf = str(buf) + str(compileExpression(arg, scope, buf))
+        buf += str(compileExpression(arg, scope))
     #     while (arg.hasChildNodes()):
     #         arg = arg.firstChild
 
@@ -260,44 +266,107 @@ def compileDoStatement(xml_data, scope, buf):
     return buf
 
 
-def compileReturnStatement(xml_data, scope, buf):
+def compileReturnStatement(xml_data, scope):
     expect_label(xml_data, 'returnStatement')
     data = list(xml_data.childNodes)
     print("\tCompiling return statement")
+    buf = ''
+    
     if (data[1].tagName == 'expression'):
         print("\t\tReturn statement returns value")
-        compileExpression(data[1], scope, buf)
+        buf += compileExpression(data[1], scope)
     else:
         print("\t\tReturn statement has no value")
         pass    # TODO: return 0 or something of that sort
     scope.leaveScope()
     return buf
 
-def compileExpression(xml_data, scope, buf):
+def compileExpression(xml_data, scope):
     expect_label(xml_data, 'expression')
     terms = list(xml_data.childNodes)
-    
+    buf = ''
     print('\tCompiling Expression')
-    buf = traversePostOrder(xml_data, buf)
-    # TODO: need something more sophisticated here. Also, should probably write the vm code directly at this point.
-    #print(terms)
+    
+    if (len(terms) == 1): # expression is a constant, a nested expression or function call
+        term = terms[0]
+        label = term.nodeName
 
-    #     while (arg.hasChildNodes()):
-    #         arg = arg.firstChild
+        if (label == 'keywordConstant'):    # generate constant value value
+            print("\t\tIn keyword constant")
+            buf += str(keywordConstant(str(term.firstChild.nodeValue).strip()))
+        elif (label == 'integerConstant'):  # constant number
+            print("\t\tIn integer constant")
+            buf += str('push ' + str(term.firstChild.nodeValue).strip() + '\n')
 
-    #     if (scope.kindOf(arg.nodeValue.strip())):
-    #         register = str(scope.kindOf(arg.firstChild.nodeValue))
-    #         index = str(scope.indexOf(arg.firstChild.nodeValue))
-    #     # TODO: missing implementation for function calls
-    #     else:
-    #         register = 'constant'
-    #         index = arg.nodeValue.strip()
-    #     buf += 'push ' + register + ' ' +  index + '\n'
-    # buf += 'call ' + str(function_name)
-    print(buf)
+        elif (label == 'stringConstant'):   # generate string
+            print('\t\tIn string constant')
+            buf += str(stringConstant(str(term.firstChild.nodeValue).strip()))
+        elif (label == 'identifier'):       # load variable from scope
+            print('\t\tIn identifier sub-block')
+            # TODO: can be a function call, a variable or something else.
+            pass
+        elif (label == 'symbol'):           # parentheses around expression
+            print('\t\tIn symbol sub-block')
+            pass
+        else:
+            raise Exception('Cannot parse single-term expression')
+    
+    elif (len(terms) == 2): # expression is an unary operation
+        operation = str(terms[0].firstChild.nodeValue).strip()
+        term = extractTerm(terms[1], scope)
+        print str(term) + str(operation) + '<-- len 2'
+        buf += str(term) + str(operation)
+    
+    elif (len(terms) == 3): # expression is (term op term)
+        operation = str(terms[1].firstChild.nodeValue).strip()
+        left_term = extractTerm(terms[0], scope)
+        right_term = extractTerm(terms[2], scope)
+        print 'term1 = {' + str(left_term).strip() + '} term2 = {' + str(right_term).strip() + '}  operation{' + str(operation).strip() + '}\t <-- len 3'
+        buf += str(left_term) + ' ' + str(right_term) + ' ' + str(operation)
+    
+    elif (len(terms) == 4): # expression is array[expression]
+        array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
+        array_exp = compileExpression(terms[2], scope)
+        print str(array_name) + ' ' + str(array_exp) + ' <-- temporary code, actually incorrect'
+        buf += str(array_name) + ' ' + str(array_exp)
+    else:
+        raise Exception('Cannot recognize expression')
+
     return buf
 
+def extractTerm(root, scope):
+    expect_label(root, 'term')
+    term = root.firstChild
+    label = term.nodeName
+    print(label)
+
+    if (label == 'keywordConstant'):    # generate constant value value
+        print("\t\tIn keyword constant")
+        return keywordConstant(str(term.firstChild.nodeValue).strip())
+    elif (label == 'integerConstant'):  # constant number
+        print("\t\tIn integer constant")
+        return 'push ' + str(term.firstChild.nodeValue).strip() + '\n'
+    elif (label == 'stringConstant'):   # generate string
+        print('\t\tIn string constant')
+        return stringConstant(str(term.firstChild.nodeValue).strip())
+    elif (label == 'identifier'):       # load variable from scope
+        print('\t\tIn identifier sub-block')
+        # TODO: can be a function call, a variable or something else.
+        pass
+    elif (label == 'symbol'):           # parentheses around expression
+        print('\t\tIn symbol sub-block')
+        if (str(term.firstChild.nodeValue).strip() == '('):
+            return compileExpression(term.nextSibling, scope)
+        print('\t\tOther symbol')
+        return
+    raise Exception('Unknown term')
+
 def traversePostOrder(root, buf):
+    if (not root.hasChildNodes()):
+        print('*')
+        print(root.nodeValue.strip())
+        return(root.nodeValue.strip())
+
     child_nodes = list(root.childNodes)
     if (len(child_nodes) == 3): # term_1 op term_2
         left_term = traversePostOrder(child_nodes[0], buf)
@@ -326,38 +395,8 @@ def traversePostOrder(root, buf):
         elif (label == 'symbol'):
             pass
         else:
+            print(label)
             raise NotImplementedError
-
-
-
-
-        # print(node.tagName)
-        # if (child_nodes[0].hasChildNodes()):
-        #     for node in child_nodes[0].childNodes:
-        #         traversePostOrder(node, buf)
-        # else:
-        #     op = child_nodes[0].nodeValue.strip()
-        #     if (op in ['(', ')']):
-        #         pass
-        #     else:
-        #         return str(op) + '\n'
-    
-    # if (root.hasChildNodes()):
-    #     temp = ''
-    #     for child in root.childNodes:
-    #         org_child = child
-    #         while (child.nextSibling):
-    #             while (not child.nodeValue):
-    #                 child = child.firstChild
-                
-    #             temp = str(temp) + str(traversePostOrder(child, buf))
-    #             child = org_child.nextSibling
-        
-    #     return str(buf) + str(temp)
-    # else:
-    #     # exp.append(root.nodeValue.strip())
-    #     return 'push ' + root.nodeValue.strip() + ' \n'
-
 
 
 
