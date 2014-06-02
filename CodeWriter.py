@@ -94,12 +94,12 @@ def compileFunctionArguments(parameterList, scope):
         print('\tFunction accepts zero arguments')
     else:
         while (params):
-            var_visibility = 'argument' # TODO: verify this; it should be defined as a local variable but accessed from ARG register
+            declaration_kind = 'argument' # TODO: verify this; it should be defined as a local variable but accessed from ARG register
             var_type = params.pop(0).firstChild.nodeValue.strip()
             var_name = params.pop(0).firstChild.nodeValue.strip()
             if (params): # discard delimiter, if one exists (last entry has none)
                 params.pop(0)
-            scope.define(var_name, var_type, var_visibility)
+            scope.define(var_name, var_type, declaration_kind)
             print('\tAdded variable __' + str(var_type) + ' ' + str(var_name) +'__ to local scope as function parameter')
 
     # destroy the nodes we compiled
@@ -115,9 +115,9 @@ def compileFunctionBody(body, scope):
     while (data):
         action = data[0].tagName
         if (action == 'varDec'):
-            buf += compileVarDeclaration(data[0], scope)
+            buf += str(compileVarDeclaration(data[0], scope))
         elif (action == 'statements'):
-            buf += compileStatements(data[0], scope)
+            buf += str(compileStatements(data[0], scope))
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
@@ -128,19 +128,22 @@ def compileVarDeclaration(declaration, scope):
         expect_label(declaration, 'varDec')
     except Exception:
         expect_label(declaration, 'classVarDec')
-    
+
+    buf = ''
     data = list(declaration.childNodes)
     # TODO: implement this; will be easier to test on a more complex source file
     print ('Compiling variable declaration section')
-    var_visibility = data.pop(0).firstChild.nodeValue.strip()
+    declaration_kind = data.pop(0).firstChild.nodeValue.strip()
     var_type = data.pop(0).firstChild.nodeValue.strip()
 
     while (data):
         var_name = data.pop(0).firstChild.nodeValue.strip()
-        scope.define(var_name, var_type, var_visibility)
-        print('\tAdded variable: ' + str(var_visibility) + ' ' + str(var_type) + ' ' + str(var_name))
+        scope.define(var_name, var_type, declaration_kind)
+
+        print('\tAdded variable: ' + str(declaration_kind) + ' ' + str(var_type) + ' ' + str(var_name))
         data.pop(0) # discard delimiter
-    raise NotImplementedError('Need to decide and implement value return')
+
+    #raise NotImplementedError('Need to decide and implement value return')
     
 
 def compileStatements(xml_data, scope):
@@ -297,6 +300,8 @@ def compileExpression(xml_data, scope):
         elif (label == 'symbol'):           # parentheses around expression
             print('\t\tIn symbol sub-block')
             pass
+        elif (label == 'term'):
+            buf += str(extractTerm(term, scope))
         else:
             raise Exception('Cannot parse single-term expression')
         #return

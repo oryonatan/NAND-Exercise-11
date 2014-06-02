@@ -23,8 +23,8 @@ class ScopeChain:
         else:
             self.chain[-1][var_name] = (var_name, var_type, var_visibility, len(self.chain[-1]) + 1)
 
-    def varCount(self, visibility):
-        if (visibility in ['static', 'field']):
+    def varCount(self, declaration_type):
+        if (declaration_type in ['static', 'field']):
             return len(self.chain[0])
         else:
             return len(self.chain[-1])
