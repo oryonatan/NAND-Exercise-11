@@ -70,8 +70,8 @@ def compileFunctionDeclaration(xml_data, scope):
     function_name = func_data[2].firstChild.nodeValue.strip()
     function_args = compileFunctionArguments(func_data[4], scope)
     function_body = compileFunctionBody(func_data[6], scope) # parse function body
+
     print('\tFunction data: (' + function_declare_mode + ') ' + function_return_type + ' ' + function_name)
-    # TODO: function names are not added to scope, right?
     print(function_args)
     arg_count = 0
 
@@ -79,7 +79,6 @@ def compileFunctionDeclaration(xml_data, scope):
     buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(arg_count) + '\n'
     buf += function_args
     buf += function_body
-
     # destroy the nodes we compiled
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
@@ -122,7 +121,6 @@ def compileFunctionBody(body, scope):
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
-    # TODO: potentially add a return statement...?
     return buf
     
 def compileVarDeclaration(declaration, scope):
@@ -191,7 +189,6 @@ def compileLetStatement(xml_data, scope):
     return buf
 
 def compileIfStatement(xml_data, scope):
-    # TODO: do we have Block-level scopes? If so, we need to create a new scope here and discard it when we return.
     expect_label(xml_data, 'ifStatement')
     print('\tCompiling if statement')
     data = list(xml_data.childNodes)
@@ -220,7 +217,6 @@ def compileIfStatement(xml_data, scope):
     return buf
 
 def compileWhileStatement(xml_data, scope):
-    # TODO: do we have Block-level scopes? If so, we need to create a new scope here and discard it when we return.
     expect_label(xml_data, 'whileStatement')
     print('\tCompiling while statement')
     data = list(xml_data.childNodes)
@@ -237,7 +233,6 @@ def compileWhileStatement(xml_data, scope):
     return buf
 
 def compileDoStatement(xml_data, scope):
-    # TODO: need to add parameter count
     expect_label(xml_data, 'doStatement')
     data = list(xml_data.childNodes)
     print('\tCompiling do statement')
@@ -254,8 +249,8 @@ def compileDoStatement(xml_data, scope):
     for arg in params.childNodes:
         buf += str(compileExpression(arg, scope))
     params_count = len(params.childNodes)
-    buf += 'call ' + function_name + ' ' + str(params_count) + '\n'
-    # TODO: need to do something regarding the function return type.
+    buf += 'call ' + function_name + ' ' + str(params_count) + '\n' + 'pop temp 0\n'
+
     return buf
 
 
@@ -270,10 +265,10 @@ def compileReturnStatement(xml_data, scope):
         buf += compileExpression(data[1], scope)
     else:
         print("\t\tReturn statement has no value")
-        buf += 'push constant 0'
+        buf += 'push constant 0\n'
         pass    # TODO: return 0 or something of that sort
     scope.leaveScope()
-    return buf
+    return buf + 'return\n'
 
 def compileExpression(xml_data, scope):
     expect_label(xml_data, 'expression')
