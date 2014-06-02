@@ -29,7 +29,6 @@ def compileClassDeclaration(xml_data, scope):
     scope.setClassName(class_name)
     buf = ''
     print('Recognized Class Declaration')
-    print('\tClass name:' + str(class_name))
     print('\tCompiling class body')
     class_data = class_data[3:] # discard previously handled elements
 
@@ -125,6 +124,7 @@ def compileFunctionBody(body, scope):
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
+    # TODO: potentially add a return statement...?
     return buf
     
 def compileVarDeclaration(declaration, scope):
