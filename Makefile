@@ -2,7 +2,7 @@ easy:
 	python JackCompiler.py Seven
 
 moderate:
-	python JackCompiler.py Pong
+	python JackCompiler.py ConvertToBin
 
 testSeven:
 	@rm -f sevenOutput.log

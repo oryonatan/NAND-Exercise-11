@@ -71,9 +71,11 @@ def compileFunctionDeclaration(xml_data, scope):
     function_args = compileFunctionArguments(func_data[4], scope)
     function_body = compileFunctionBody(func_data[6], scope) # parse function body
 
+    scope.defineFunction(function_name, function_declare_mode, scope.getClassName())
+
     print('\tFunction data: (' + function_declare_mode + ') ' + function_return_type + ' ' + function_name)
     print(function_args)
-    arg_count = 0
+    arg_count = 0    # TODO this is wrong! Need to count the arguments!
 
 
     buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(arg_count) + '\n'
@@ -94,6 +96,7 @@ def compileFunctionArguments(parameterList, scope):
         print('\tFunction accepts zero arguments')
     else:
         while (params):
+            # don't actually need to push the declaration anywhere, just add them to local scope and push them into ARG register.
             declaration_kind = 'argument' # TODO: verify this; it should be defined as a local variable but accessed from ARG register
             var_type = params.pop(0).firstChild.nodeValue.strip()
             var_name = params.pop(0).firstChild.nodeValue.strip()
@@ -144,7 +147,7 @@ def compileVarDeclaration(declaration, scope):
         data.pop(0) # discard delimiter
 
     #raise NotImplementedError('Need to decide and implement value return')
-    
+    return buf
 
 def compileStatements(xml_data, scope):
     expect_label(xml_data, 'statements')
@@ -249,7 +252,10 @@ def compileDoStatement(xml_data, scope):
         params = data[3]
     
     # TODO: there might be another implementation detail I am missing here regarding functions' owning classes
+    # TODO: can use scope.getFunctionsWithName and scope.getFunctionData to get the necessary information
     for arg in params.childNodes:
+        if (str(arg.firstChild.nodeValue).strip() == ','):
+            continue
         buf += str(compileExpression(arg, scope))
     params_count = len(params.childNodes)
     buf += 'call ' + function_name + ' ' + str(params_count) + '\n' + 'pop temp 0\n'
@@ -269,7 +275,7 @@ def compileReturnStatement(xml_data, scope):
     else:
         print("\t\tReturn statement has no value")
         buf += 'push constant 0\n'
-        pass    # TODO: return 0 or something of that sort
+
     scope.leaveScope()
     return buf + 'return\n'
 
@@ -284,39 +290,42 @@ def compileExpression(xml_data, scope):
         label = term.nodeName
 
         if (label == 'keywordConstant'):    # generate constant value value
-            # print("\t\tIn keyword constant")
             buf += str(keywordConstant(str(term.firstChild.nodeValue).strip()))
+
         elif (label == 'integerConstant'):  # constant number
-            # print("\t\tIn integer constant")
             buf += str('push constant ' + str(term.firstChild.nodeValue).strip() + '\n')
 
         elif (label == 'stringConstant'):   # generate string
-            # print('\t\tIn string constant')
             buf += str(stringConstant(str(term.firstChild.nodeValue).strip()))
+
         elif (label == 'identifier'):       # load variable from scope
             print('\t\tIn identifier sub-block')
-            # TODO: can be a function call, a variable or something else.
-            pass
+            # TODO: handle functions. Also, replace this entire block with a call to extractTerm. Seriously!
+            sub_label = term.firstChild.nodeName
+            print('SUB_LABEL = ' + str(sub_label))
+            exit()
+            # TODO: can be a function call, a variable or something else. Do some lookahead and stuff.
+            raise NotImplementedError
+
         elif (label == 'symbol'):           # parentheses around expression
             print('\t\tIn symbol sub-block')
-            pass
+            raise NotImplementedError
+
         elif (label == 'term'):
             buf += str(extractTerm(term, scope))
+
         else:
-            raise Exception('Cannot parse single-term expression')
-        #return
+            raise NotImplementedError
+
     elif (len(terms) == 2): # expression is an unary operation
-        
-        operation = handleOpSymbol(str(terms[0].firstChild.nodeValue).strip(), terms[0], scope)
+        operation = handleUnaryOpSymbol(str(terms[0].firstChild.nodeValue).strip())
         term = extractTerm(terms[1], scope)
-        # print str(term) + str(operation) + '<-- len 2'
         buf += str(term) + str(operation)
     
     elif (len(terms) == 3): # expression is (term op term)
-        operation = handleOpSymbol(str(terms[1].firstChild.nodeValue).strip(), terms[1], scope)
+        operation = handleBinaryOpSymbol(str(terms[1].firstChild.nodeValue).strip(), terms[1], scope)
         left_term = extractTerm(terms[0], scope)
         right_term = extractTerm(terms[2], scope)
-        # print 'term1 = {' + str(left_term) + '} term2 = {' + str(right_term) + '}  operation{' + str(operation) + '}\t <-- len 3'
         buf += str(left_term) + str(right_term) + str(operation)
     
     elif (len(terms) == 4): # expression is array[expression]
@@ -329,34 +338,53 @@ def compileExpression(xml_data, scope):
 
     return buf
 
-def extractTerm(root, scope):
+def extractTerm(root, scope):   #TODO consider fixing code duplication here and in compileExpression
     expect_label(root, 'term')
     term = root.firstChild
     label = term.nodeName
 
     if (label == 'keywordConstant'):    # generate constant value value
-        #print("\t\tIn keyword constant")
         return keywordConstant(str(term.firstChild.nodeValue).strip())
+
     elif (label == 'integerConstant'):  # constant number
-        #print("\t\tIn integer constant")
         return 'push constant ' + str(term.firstChild.nodeValue).strip() + '\n'
+
     elif (label == 'stringConstant'):   # generate string
-        #print('\t\tIn string constant')
         return stringConstant(str(term.firstChild.nodeValue).strip())
+
     elif (label == 'identifier'):       # load variable from scope
         print('\t\tIn identifier sub-block')
+        siblings = list(term.parentNode.childNodes)
+        buf = ''
+        if (len(siblings) > 4):
+            if (str(siblings[1].firstChild.nodeValue).strip() == '.'): # Class.Function(expressionList);
+                class_name = str(siblings[0].firstChild.nodeValue).strip()
+                func_name = str(siblings[2].firstChild.nodeValue).strip()
+                param_count = 0
+                for param in siblings[4].childNodes:
+
+                    param_count += 1    # might need a more sophisticated thing here, since we can have junk symbols.
+                    buf += str(compileExpression(param, scope)) + '##\n'
+
+                buf += 'call ' + str(class_name) + ' ' + str(func_name) + ' ' + str(param_count) + '\n'
+                return buf
+        # for node in data:
+
+        sub_label = str(term.firstChild.nodeValue).strip()
+
+        print(sub_label)
         # TODO: can be a function call, a variable or something else.
-        pass
+        return buf
+        raise NotImplementedError
+
     elif (label == 'symbol'):           # parentheses around expression
         print('\t\tIn symbol sub-block')
-        return handleOpSymbol(str(term.firstChild.nodeValue).strip(), term, scope)
-        # if (sym == '('):
-        #     return compileExpression(term.nextSibling, scope)
-        # print('\t\tOther symbol')
+        return handleBinaryOpSymbol(str(term.firstChild.nodeValue).strip(), term, scope)
+
     
     raise Exception('Unknown term')
 
-def handleOpSymbol(sym, node, scope):
+def handleBinaryOpSymbol(sym, node, scope):
     if (sym == '('):
         return compileExpression(node.nextSibling, scope)
     elif (sym == '+'):
@@ -368,9 +396,23 @@ def handleOpSymbol(sym, node, scope):
     elif (sym == '/'):
         return 'call Math.divide 2\n'
     elif (sym == '&'):
-        return 'bitwise and\n'
+        return 'and\n'
     elif (sym == '|'):
-        return 'bitwise or\n'
+        return 'or\n'
+    elif (sym == '='):
+        return 'eq\n'
+    elif (sym == '<'):
+        return 'lt\n'
+    elif (sym == '>'):
+        return 'gt\n'
+
+    raise NotImplementedError
+
+def handleUnaryOpSymbol(sym):
+    if (sym == '-'):
+        return 'neg\n'
+    elif (sym == '~'):
+        return 'not\n'
 
     raise NotImplementedError
 
@@ -382,4 +424,8 @@ def keywordConstant(keyword):
     raise NotImplementedError
 
 def stringConstant(string):
-    pass
+    buf = ''
+    str_len = len(string)
+    buf += 'push constant '+ str(str_len)  + '\ncall String.new\n'
+    raise NotImplementedError
+    #return buf
