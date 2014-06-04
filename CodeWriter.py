@@ -15,7 +15,6 @@ def encode(xml_data):
     
     # parsing new class
     scope = ScopeChain()
-    main_nodes = list(xml_data.childNodes)
 
     result = compileClassDeclaration(xml_data, scope)
     print('Encoding complete. Result:\n')
@@ -48,15 +47,14 @@ def compileClassBody(xml_data, scope):
     expect_label(xml_data, 'subroutineDec')
     print('Recognized class body')
     buf = ''
+
     while (xml_data.hasChildNodes()):
         print('\tbody data length: ' + str(len(xml_data.childNodes)))
         current_top = xml_data.childNodes[0]
         command = str(current_top.firstChild.nodeValue).strip()
         if (command in ['constructor', 'function', 'method']):
             buf += compileFunctionDeclaration(current_top.parentNode, scope)
-    
-    # for node in xml_data.childNodes:
-    #     print node.tagName + ' : ' + str(node.firstChild.nodeValue)
+
     return buf
 
 def compileFunctionDeclaration(xml_data, scope):
@@ -82,6 +80,7 @@ def compileFunctionDeclaration(xml_data, scope):
     buf += function_args
     buf += function_body
     # destroy the nodes we compiled
+
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
     return buf
@@ -286,36 +285,7 @@ def compileExpression(xml_data, scope):
     print('\tCompiling Expression')
     
     if (len(terms) == 1): # expression is a constant, a nested expression or function call
-        term = terms[0]
-        label = term.nodeName
-
-        if (label == 'keywordConstant'):    # generate constant value value
-            buf += str(keywordConstant(str(term.firstChild.nodeValue).strip()))
-
-        elif (label == 'integerConstant'):  # constant number
-            buf += str('push constant ' + str(term.firstChild.nodeValue).strip() + '\n')
-
-        elif (label == 'stringConstant'):   # generate string
-            buf += str(stringConstant(str(term.firstChild.nodeValue).strip()))
-
-        elif (label == 'identifier'):       # load variable from scope
-            print('\t\tIn identifier sub-block')
-            # TODO: handle functions. Also, replace this entire block with a call to extractTerm. Seriously!
-            sub_label = term.firstChild.nodeName
-            print('SUB_LABEL = ' + str(sub_label))
-            exit()
-            # TODO: can be a function call, a variable or something else. Do some lookahead and stuff.
-            raise NotImplementedError
-
-        elif (label == 'symbol'):           # parentheses around expression
-            print('\t\tIn symbol sub-block')
-            raise NotImplementedError
-
-        elif (label == 'term'):
-            buf += str(extractTerm(term, scope))
-
-        else:
-            raise NotImplementedError
+        buf += extractTerm(terms[0], scope)
 
     elif (len(terms) == 2): # expression is an unary operation
         operation = handleUnaryOpSymbol(str(terms[0].firstChild.nodeValue).strip())
@@ -338,7 +308,7 @@ def compileExpression(xml_data, scope):
 
     return buf
 
-def extractTerm(root, scope):   #TODO consider fixing code duplication here and in compileExpression
+def extractTerm(root, scope):
     expect_label(root, 'term')
     term = root.firstChild
     label = term.nodeName
@@ -381,7 +351,7 @@ def extractTerm(root, scope):   #TODO consider fixing code duplication here and 
         print('\t\tIn symbol sub-block')
         return handleBinaryOpSymbol(str(term.firstChild.nodeValue).strip(), term, scope)
 
-    
+
     raise Exception('Unknown term')
 
 def handleBinaryOpSymbol(sym, node, scope):
@@ -428,4 +398,4 @@ def stringConstant(string):
     str_len = len(string)
     buf += 'push constant '+ str(str_len)  + '\ncall String.new\n'
     raise NotImplementedError
-    #return buf
+    return buf
