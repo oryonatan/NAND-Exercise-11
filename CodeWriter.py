@@ -338,8 +338,8 @@ def extractTerm(root, scope):
                 param_count = 0
                 for param in siblings[4].childNodes:
 
-                    param_count += 1    # might need a more sophisticated thing here, since we can have junk symbols.
-                    buf += str(compileExpression(param, scope)) + '##\n'
+                    param_count += 1    # TODO: need a more sophisticated thing here, since we can have junk symbols.
+                    buf += str(compileExpression(param, scope))
 
                 buf += 'call ' + str(class_name) + '.' + str(func_name) + ' ' + str(param_count) + '\n'
                 return buf
@@ -401,11 +401,16 @@ def keywordConstant(keyword):
         return 'push constant 0\n'
     elif (keyword == 'true'):
         return 'push constant 0\nneg\n'
+    elif (keyword == 'this'):
+        return 'push pointer 0\n' # TODO do we need this?
+
     raise NotImplementedError
 
 def stringConstant(string):
     buf = ''
     str_len = len(string)
-    buf += 'push constant '+ str(str_len)  + '\ncall String.new\n'
-    raise NotImplementedError
+    buf += 'push constant '+ str(str_len)  + '\ncall String.new 1\n'
+    for c in list(string):
+        buf += 'push constant ' + str(int(c)) + '\ncall String.appendChar 2\n'
+
     return buf
