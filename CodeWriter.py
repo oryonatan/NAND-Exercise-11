@@ -17,8 +17,7 @@ def encode(xml_data):
     scope = ScopeChain()
 
     result = compileClassDeclaration(xml_data, scope)
-    print('Encoding complete. Result:\n')
-    print(result)
+    print('Encoding complete.')
     return result
 
 def compileClassDeclaration(xml_data, scope):
@@ -91,18 +90,19 @@ def compileFunctionArguments(parameterList, scope):
     print('Compiling parameter list')
     buf = '' # TODO add VM code here
     params = list(parameterList.childNodes)
+
     if (len(params) == 1 and params[0].nodeValue == '\n'):
         print('\tFunction accepts zero arguments')
+
     else:
-        while (params):
-            # don't actually need to push the declaration anywhere, just add them to local scope and push them into ARG register.
-            declaration_kind = 'argument' # TODO: verify this; it should be defined as a local variable but accessed from ARG register
+        while (params): # don't actually need to push the declaration anywhere, just add them to local scope and push them into ARG register.
+            declaration_kind = 'argument'
             var_type = params.pop(0).firstChild.nodeValue.strip()
             var_name = params.pop(0).firstChild.nodeValue.strip()
             if (params): # discard delimiter, if one exists (last entry has none)
                 params.pop(0)
             scope.define(var_name, var_type, declaration_kind)
-            print('\tAdded variable __' + str(var_type) + ' ' + str(var_name) +'__ to local scope as function parameter')
+            print('\tAdded variable {' + str(var_type) + ' ' + str(var_name) +'} to local scope as function parameter')
 
     # destroy the nodes we compiled
     parameterList.parentNode.removeChild(parameterList)
@@ -131,9 +131,7 @@ def compileVarDeclaration(declaration, scope):
     except Exception:
         expect_label(declaration, 'classVarDec')
 
-    buf = ''
     data = list(declaration.childNodes)
-    # TODO: implement this; will be easier to test on a more complex source file
     print ('Compiling variable declaration section')
     declaration_kind = data.pop(0).firstChild.nodeValue.strip()
     var_type = data.pop(0).firstChild.nodeValue.strip()
@@ -145,8 +143,8 @@ def compileVarDeclaration(declaration, scope):
         print('\tAdded variable: ' + str(declaration_kind) + ' ' + str(var_type) + ' ' + str(var_name))
         data.pop(0) # discard delimiter
 
-    #raise NotImplementedError('Need to decide and implement value return')
-    return buf
+    # Variable declarations do not generate code. It's enough to update the scope with data.
+    return ''
 
 def compileStatements(xml_data, scope):
     expect_label(xml_data, 'statements')
@@ -188,6 +186,8 @@ def compileLetStatement(xml_data, scope):
 
     buf += compileExpression(rvalue_exp, scope)
 
+    #TODO assign value into var_name
+
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
@@ -197,6 +197,7 @@ def compileIfStatement(xml_data, scope):
     expect_label(xml_data, 'ifStatement')
     print('\tCompiling if statement')
     data = list(xml_data.childNodes)
+
     cond_exp = data[2]
     buf = ''
     statement_body = data[5]
@@ -214,7 +215,8 @@ def compileIfStatement(xml_data, scope):
         buf += compileExpression(cond_exp, scope)
         buf += compileStatements(statement_body, scope)
     else:
-        raise Exception('bad node count in if statement')
+        print('====bad node count in if statement====')
+        exit(1)
 
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
@@ -227,8 +229,11 @@ def compileWhileStatement(xml_data, scope):
     data = list(xml_data.childNodes)
     buf = ''
     cond_exp = data[2]
-    statement_body = data[4]
-    
+    statement_body = data[5]
+
+    # for k in data:
+    #     print (k.nodeName)
+
     buf += compileExpression(cond_exp, scope)
     buf += compileStatements(statement_body, scope)
 
@@ -280,40 +285,40 @@ def compileReturnStatement(xml_data, scope):
 
 def compileExpression(xml_data, scope):
     expect_label(xml_data, 'expression')
-    terms = list(xml_data.childNodes)
-    buf = ''
     print('\tCompiling Expression')
-    
-    if (len(terms) == 1): # expression is a constant, a nested expression or function call
-        buf += extractTerm(terms[0], scope)
+
+    terms = list(xml_data.childNodes)
+
+    if (len(terms) == 1): # expression is a constant, a nested expression, unary operation or function call
+        return extractTerm(terms[0], scope)
 
     elif (len(terms) == 2): # expression is an unary operation
-        operation = handleUnaryOpSymbol(str(terms[0].firstChild.nodeValue).strip())
-        term = extractTerm(terms[1], scope)
-        buf += str(term) + str(operation)
+        raise Exception('Seems we actually do get expressions of length 2')
+    #     operation = handleUnaryOpSymbol(str(terms[0].firstChild.nodeValue).strip())
+    #     term = extractTerm(terms[1], scope)
+    #     return str(term) + str(operation)
     
     elif (len(terms) == 3): # expression is (term op term)
         operation = handleBinaryOpSymbol(str(terms[1].firstChild.nodeValue).strip(), terms[1], scope)
         left_term = extractTerm(terms[0], scope)
         right_term = extractTerm(terms[2], scope)
-        buf += str(left_term) + str(right_term) + str(operation)
+        return str(left_term) + str(right_term) + str(operation)
     
     elif (len(terms) == 4): # expression is array[expression]
         array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
         array_exp = str(compileExpression(terms[2], scope)).strip()
         print(str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect')
-        buf += str(array_name) + str(array_exp)
-    else:
-        raise Exception('Cannot recognize expression')
+        return str(array_name) + str(array_exp)
 
-    return buf
+    raise Exception('Cannot recognize expression')
+
 
 def extractTerm(root, scope):
     expect_label(root, 'term')
     term = root.firstChild
     label = term.nodeName
 
-    if (label == 'keywordConstant'):    # generate constant value value
+    if (label == 'keyword'):    # generate constant value value
         return keywordConstant(str(term.firstChild.nodeValue).strip())
 
     elif (label == 'integerConstant'):  # constant number
@@ -336,7 +341,7 @@ def extractTerm(root, scope):
                     param_count += 1    # might need a more sophisticated thing here, since we can have junk symbols.
                     buf += str(compileExpression(param, scope)) + '##\n'
 
-                buf += 'call ' + str(class_name) + ' ' + str(func_name) + ' ' + str(param_count) + '\n'
+                buf += 'call ' + str(class_name) + '.' + str(func_name) + ' ' + str(param_count) + '\n'
                 return buf
         # for node in data:
 
@@ -347,9 +352,14 @@ def extractTerm(root, scope):
         return buf
         raise NotImplementedError
 
-    elif (label == 'symbol'):           # parentheses around expression
-        print('\t\tIn symbol sub-block')
-        return handleBinaryOpSymbol(str(term.firstChild.nodeValue).strip(), term, scope)
+    elif (label == 'symbol'):           # parentheses around expression or unary operation
+        if (str(term.firstChild.nodeValue).strip() in ['-','~']):
+        # if (term.nextSibling.nodeName == 'term'): # in case we need a more robust check
+            return extractTerm(term.nextSibling, scope) + handleUnaryOpSymbol(str(term.firstChild.nodeValue).strip())
+        elif (str(term.firstChild.nodeValue).strip() == '('):
+            return compileExpression(term.nextSibling, scope)
+        else:
+            raise NotImplementedError
 
 
     raise Exception('Unknown term')
@@ -375,7 +385,7 @@ def handleBinaryOpSymbol(sym, node, scope):
         return 'lt\n'
     elif (sym == '>'):
         return 'gt\n'
-
+    print(sym)
     raise NotImplementedError
 
 def handleUnaryOpSymbol(sym):
