@@ -66,14 +66,14 @@ def compileFunctionDeclaration(xml_data, scope):
     function_return_type = func_data[1].firstChild.nodeValue.strip()
     function_name = func_data[2].firstChild.nodeValue.strip()
     function_args, arg_count = compileFunctionArguments(func_data[4], scope)
-    function_body, field_count = compileFunctionBody(func_data[6], scope) # parse function body
+    function_body, field_count = compileFunctionBody(func_data[6], scope)
 
     print("Recognized function declaration for function " + str(function_name) + '\tArgument count' + str(arg_count))
 
     scope.defineFunction(function_name, function_declare_mode, scope.getClassName())
 
     print('\tFunction data: (' + function_declare_mode + ') ' + function_return_type + ' ' + function_name)
-    print('Arguments: ' + str(function_args) + ' Count: ' + str(arg_count))
+    print('Arguments: ' + str(function_args) + ' Count: ' + str(field_count))
     print(function_args)
 
     buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(field_count) + '\n'
@@ -116,17 +116,17 @@ def compileFunctionBody(body, scope):
     data = list(body.childNodes)
     data = data[1:-1]   # remove first and last elements ( '{' and '}' )
     statements = ''
-    args = ''
+    args = 0
     while (data):
         action = data[0].tagName
         if (action == 'varDec'):
-            args = str(compileVarDeclaration(data[0], scope))
+            args += compileVarDeclaration(data[0], scope)
         elif (action == 'statements'):
             statements = str(compileStatements(data[0], scope))
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
-    return statements, args
+    return statements, str(args)
     
 def compileVarDeclaration(declaration, scope):
     try:
@@ -148,7 +148,7 @@ def compileVarDeclaration(declaration, scope):
         data.pop(0) # discard delimiter
 
     # Variable declarations do not generate code. It's enough to update the scope with data.
-    return str(var_count)
+    return var_count
 
 def compileStatements(xml_data, scope):
     expect_label(xml_data, 'statements')
