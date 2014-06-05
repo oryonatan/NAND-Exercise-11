@@ -249,7 +249,9 @@ def compileIfStatement(xml_data, scope):
         print('If block with Else statement')
         else_statement = data[9]
         # TODO: might need to change the internal ordering of some function calls here
-        buf += compileExpression(cond_exp, scope)
+        set_marker('IF-TRUE')
+
+        buf += "FISH" + str(compileExpression(cond_exp, scope))
         buf += compileStatements(statement_body, scope)
         buf += compileStatements(else_statement, scope)
     elif (len(data) == 7):
@@ -397,7 +399,6 @@ def extractTerm(root, scope):
 
     elif (label == 'symbol'):           # parentheses around expression or unary operation
         if (str(term.firstChild.nodeValue).strip() in ['-','~']):
-        # if (term.nextSibling.nodeName == 'term'): # in case we need a more robust check
             return extractTerm(term.nextSibling, scope) + handleUnaryOpSymbol(str(term.firstChild.nodeValue).strip())
         elif (str(term.firstChild.nodeValue).strip() == '('):
             return compileExpression(term.nextSibling, scope)
