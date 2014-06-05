@@ -239,7 +239,6 @@ def compileLetStatement(xml_data, scope):
 
 def compileIfStatement(xml_data, scope):
     expect_label(xml_data, 'ifStatement')
-    print('\tCompiling if statement')
     data = list(xml_data.childNodes)
 
     cond_exp = data[2]
@@ -247,7 +246,6 @@ def compileIfStatement(xml_data, scope):
     statement_body = data[5]
 
     if (len(data) == 11):
-        print('If block with Else statement')
         else_statement = data[9]
         # Evaluate condition
         buf += compileExpression(cond_exp, scope)
@@ -255,7 +253,7 @@ def compileIfStatement(xml_data, scope):
         # Jump instruction if condition is true
         set_marker('IF-TRUE')
         true_label = str(get_marker())
-        buf += 'if-goto' + true_label
+        buf += 'if-goto ' + true_label
 
         # Jump instruction if false
         set_marker('IF-FALSE')
@@ -279,8 +277,6 @@ def compileIfStatement(xml_data, scope):
         buf += 'label ' + exit_label
 
     elif (len(data) == 7):
-        print('If block without an Else statement')
-
         # Evaluate condition
         buf += compileExpression(cond_exp, scope)
 
@@ -303,7 +299,7 @@ def compileIfStatement(xml_data, scope):
 
     else:
         print('====bad node count in if statement====')
-        exit(1)
+        raise NotImplementedError
 
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
@@ -313,21 +309,34 @@ def compileIfStatement(xml_data, scope):
 def compileWhileStatement(xml_data, scope):
     expect_label(xml_data, 'whileStatement')
     print('\tCompiling while statement')
-
+    buf = ''
     data = list(xml_data.childNodes)
 
     cond_exp = data[2]
     statement_body = data[5]
 
-    set_marker('WHILE')
+    # Set label for condition evaluation
+    set_marker('WHILE_CONDITION')
+    cond_marker = get_marker()
+    buf += 'label ' + cond_marker
+    buf += compileExpression(cond_exp, scope)
+    buf += 'not\n'
+    # Set loop exit point and create jump instruction
+    set_marker('WHILE_END')
+    end_marker = get_marker()
+    buf += 'if-goto ' + end_marker
 
-    exp = compileExpression(cond_exp, scope)
-    body = compileStatements(statement_body, scope)
+    # Perform iteration
+    buf += compileStatements(statement_body, scope)
+    buf += 'goto ' + cond_marker
+
+    # Set finish point
+    buf += 'label ' + end_marker
 
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
-    return 'WHILE STATEMENT\n' + exp + body
+    return buf
 
 def compileDoStatement(xml_data, scope):
     expect_label(xml_data, 'doStatement')
@@ -369,7 +378,6 @@ def compileReturnStatement(xml_data, scope):
         print("\t\tReturn statement has no value")
         buf += 'push constant 0\n'
 
-    scope.leaveScope()
     return buf + 'return\n'
 
 def compileExpression(xml_data, scope):
@@ -380,7 +388,7 @@ def compileExpression(xml_data, scope):
     terms = list(xml_data.childNodes)
 
     if (len(terms) == 1): # expression is a constant, a nested expression, unary operation or function call
-        return get_marker() + str(extractTerm(terms[0], scope))
+        return str(extractTerm(terms[0], scope))
 
     elif (len(terms) == 2): # expression is an unary operation
         raise Exception('Seems we actually do get expressions of length 2')
@@ -392,13 +400,13 @@ def compileExpression(xml_data, scope):
         left_term = extractTerm(terms[0], scope)
         operation = handleBinaryOpSymbol(str(terms[1].firstChild.nodeValue).strip(), terms[1], scope)
         right_term = extractTerm(terms[2], scope)
-        return get_marker() + str(left_term) + str(right_term) + str(operation)
+        return str(left_term) + str(right_term) + str(operation)
     
     elif (len(terms) == 4): # expression is array[expression]
         array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
         array_exp = str(compileExpression(terms[2], scope)).strip()
         print(str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect')
-        return get_marker() + str(array_name) + str(array_exp)
+        return str(array_name) + str(array_exp)
 
     raise Exception('Cannot recognize expression')
 
