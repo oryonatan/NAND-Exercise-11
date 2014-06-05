@@ -58,24 +58,25 @@ def compileClassBody(xml_data, scope):
 
 def compileFunctionDeclaration(xml_data, scope):
     expect_values(xml_data.firstChild, ['constructor', 'function', 'method'])
-    print("Recognized function declaration")
+    
     func_data = list(xml_data.childNodes)
     buf = ''
     
     function_declare_mode = func_data[0].firstChild.nodeValue.strip()
     function_return_type = func_data[1].firstChild.nodeValue.strip()
     function_name = func_data[2].firstChild.nodeValue.strip()
-    function_args = compileFunctionArguments(func_data[4], scope)
-    function_body = compileFunctionBody(func_data[6], scope) # parse function body
+    function_args, arg_count = compileFunctionArguments(func_data[4], scope)
+    function_body, field_count = compileFunctionBody(func_data[6], scope) # parse function body
+
+    print("Recognized function declaration for function " + str(function_name) + '\tArgument count' + str(arg_count))
 
     scope.defineFunction(function_name, function_declare_mode, scope.getClassName())
 
     print('\tFunction data: (' + function_declare_mode + ') ' + function_return_type + ' ' + function_name)
+    print('Arguments: ' + str(function_args) + ' Count: ' + str(arg_count))
     print(function_args)
-    arg_count = 0    # TODO this is wrong! Need to count the arguments!
 
-
-    buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(arg_count) + '\n'
+    buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(field_count) + '\n'
     buf += function_args
     buf += function_body
     # destroy the nodes we compiled
@@ -88,17 +89,18 @@ def compileFunctionArguments(parameterList, scope):
     scope.pushNewScope()
     expect_label(parameterList, 'parameterList')
     print('Compiling parameter list')
-    buf = '' # TODO add VM code here
+    buf = ''
     params = list(parameterList.childNodes)
-
+    count = 0
     if (len(params) == 1 and params[0].nodeValue == '\n'):
         print('\tFunction accepts zero arguments')
 
-    else:
+    else: # TODO: this entire block feels conceptually wrong. We do need to add the arguments to the scope, but we don't need to count them. Instead, we count the arguments in the function body.
         while (params): # don't actually need to push the declaration anywhere, just add them to local scope and push them into ARG register.
             declaration_kind = 'argument'
             var_type = params.pop(0).firstChild.nodeValue.strip()
             var_name = params.pop(0).firstChild.nodeValue.strip()
+            count += 1
             if (params): # discard delimiter, if one exists (last entry has none)
                 params.pop(0)
             scope.define(var_name, var_type, declaration_kind)
@@ -107,23 +109,24 @@ def compileFunctionArguments(parameterList, scope):
     # destroy the nodes we compiled
     parameterList.parentNode.removeChild(parameterList)
     parameterList.unlink()
-    return buf
+    return buf, count
 
 def compileFunctionBody(body, scope):
     print("Compiling function body")
     data = list(body.childNodes)
     data = data[1:-1]   # remove first and last elements ( '{' and '}' )
-    buf = ''
+    statements = ''
+    args = ''
     while (data):
         action = data[0].tagName
         if (action == 'varDec'):
-            buf += str(compileVarDeclaration(data[0], scope))
+            args = str(compileVarDeclaration(data[0], scope))
         elif (action == 'statements'):
-            buf += str(compileStatements(data[0], scope))
+            statements = str(compileStatements(data[0], scope))
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
-    return buf
+    return statements, args
     
 def compileVarDeclaration(declaration, scope):
     try:
@@ -131,6 +134,7 @@ def compileVarDeclaration(declaration, scope):
     except Exception:
         expect_label(declaration, 'classVarDec')
 
+    var_count = 0
     data = list(declaration.childNodes)
     print ('Compiling variable declaration section')
     declaration_kind = data.pop(0).firstChild.nodeValue.strip()
@@ -139,12 +143,12 @@ def compileVarDeclaration(declaration, scope):
     while (data):
         var_name = data.pop(0).firstChild.nodeValue.strip()
         scope.define(var_name, var_type, declaration_kind)
-
+        var_count += 1
         print('\tAdded variable: ' + str(declaration_kind) + ' ' + str(var_type) + ' ' + str(var_name))
         data.pop(0) # discard delimiter
 
     # Variable declarations do not generate code. It's enough to update the scope with data.
-    return ''
+    return str(var_count)
 
 def compileStatements(xml_data, scope):
     expect_label(xml_data, 'statements')
@@ -231,9 +235,6 @@ def compileWhileStatement(xml_data, scope):
     cond_exp = data[2]
     statement_body = data[5]
 
-    # for k in data:
-    #     print (k.nodeName)
-
     buf += compileExpression(cond_exp, scope)
     buf += compileStatements(statement_body, scope)
 
@@ -247,6 +248,7 @@ def compileDoStatement(xml_data, scope):
     data = list(xml_data.childNodes)
     print('\tCompiling do statement')
     buf = ''
+    params_count = 0
     if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) ;
         function_name = str(data[1].firstChild.nodeValue.strip()) + '.' + str(data[3].firstChild.nodeValue.strip())
         params = data[5]
@@ -261,7 +263,8 @@ def compileDoStatement(xml_data, scope):
         if (str(arg.firstChild.nodeValue).strip() == ','):
             continue
         buf += str(compileExpression(arg, scope))
-    params_count = len(params.childNodes)
+        params_count += 1
+
     buf += 'call ' + function_name + ' ' + str(params_count) + '\n' + 'pop temp 0\n'
 
     return buf
@@ -337,8 +340,7 @@ def extractTerm(root, scope):
                 func_name = str(siblings[2].firstChild.nodeValue).strip()
                 param_count = 0
                 for param in siblings[4].childNodes:
-
-                    param_count += 1    # TODO: need a more sophisticated thing here, since we can have junk symbols.
+                    param_count += 1    # TODO: might need a more sophisticated thing here, since we can have junk symbols.
                     buf += str(compileExpression(param, scope))
 
                 buf += 'call ' + str(class_name) + '.' + str(func_name) + ' ' + str(param_count) + '\n'
