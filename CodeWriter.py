@@ -177,7 +177,9 @@ def compileLetStatement(xml_data, scope):
     expect_label(xml_data, 'letStatement')
     print('\tCompiling let statement')
     data = list(xml_data.childNodes)
-    var_name = data[1]
+    var_name = str(data[1].firstChild.nodeValue).strip()
+    var_full_name = str(scope.kindOf(var_name)) + ' ' + str(scope.indexOf(var_name))
+
     buf = ''
     if (data[2].firstChild.nodeValue.strip() == '['):   # accessing array element
         print('\t\tAccessing array')
@@ -187,10 +189,10 @@ def compileLetStatement(xml_data, scope):
         buf += compileExpression(array_exp, scope)
     else:
         rvalue_exp = data[3]
-
+    print("Pop-Push variable named " + str(var_name))
     buf += compileExpression(rvalue_exp, scope)
-
-    #TODO assign value into var_name
+    buf += 'pop ' + var_full_name + '\n'
+    buf += 'push ' + var_full_name + '\n'
 
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
