@@ -25,7 +25,8 @@ def set_marker(tag=''):
     if (tag == '' or tag is None):
         marker = ''
     else:
-        marker = 'reservedLabel_' + str(label_count) + '_' + str(tag)
+        marker = str(tag) + str(label_count)
+        #marker = 'reservedLabel_' + str(label_count) + '_' + str(tag)
         label_count += 1
 
 def get_marker():
@@ -248,35 +249,58 @@ def compileIfStatement(xml_data, scope):
     if (len(data) == 11):
         print('If block with Else statement')
         else_statement = data[9]
-        # TODO: might need to change the internal ordering of some function calls here
-
-
+        # Evaluate condition
         buf += compileExpression(cond_exp, scope)
 
+        # Jump instruction if condition is true
         set_marker('IF-TRUE')
         true_label = str(get_marker())
         buf += 'if-goto' + true_label
 
+        # Jump instruction if false
         set_marker('IF-FALSE')
         false_label = str(get_marker())
         buf += 'goto ' + false_label
 
+        # If block body
         buf += 'label ' + true_label
         buf += compileStatements(statement_body, scope)
 
+        # Jump to termination of If block body (skip Else instructions)
         set_marker('IF-EXIT')
         exit_label = str(get_marker())
         buf += 'goto ' + exit_label
 
+        # Else block body
         buf += 'label ' + false_label
         buf += compileStatements(else_statement, scope)
 
+        # Termination of If body
         buf += 'label ' + exit_label
+
     elif (len(data) == 7):
         print('If block without an Else statement')
-        # TODO: might need to change the internal ordering of some function calls here
+
+        # Evaluate condition
         buf += compileExpression(cond_exp, scope)
+
+        # Jump instruction if condition is true
+        set_marker('IF-TRUE')
+        true_label = str(get_marker())
+        buf += 'if-goto ' + true_label
+
+        # Jump instruction if false
+        set_marker('IF-FALSE')
+        false_label = str(get_marker())
+        buf += 'goto ' + false_label
+
+        # If block body
+        buf += 'label ' + true_label
         buf += compileStatements(statement_body, scope)
+
+        # Termination of If body
+        buf += 'label ' + false_label
+
     else:
         print('====bad node count in if statement====')
         exit(1)
