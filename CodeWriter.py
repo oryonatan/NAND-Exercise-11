@@ -2,6 +2,9 @@ __author__ = 'larrath'
 
 from SymbolTable import ScopeChain
 
+global label_count
+global marker
+
 def expect_label(xml_data, desired_value):
     if (xml_data.nodeName.strip() != desired_value):
         raise Exception('Label should be ' + str(desired_value) + '; instead got ' + xml_data.nodeName)
@@ -10,9 +13,17 @@ def expect_values(xml_data, desired_values):
     if (str(xml_data.firstChild.nodeValue).strip() not in desired_values):
         raise Exception('Label should be in' + str(desired_values) + '; instead got ' + xml_data.firstChild.nodeValue)
 
+def make_label(tag=''):
+    global label_count
+    label_count += 1
+    return 'reservedLabel' + tag + str(label_count) + '\n'
+
 def encode(xml_data):
     expect_label(xml_data, 'class')
-    
+    global label_count
+    label_count = 0
+    global marker
+    marker = ""
     # parsing new class
     scope = ScopeChain()
 
@@ -155,6 +166,7 @@ def compileStatements(xml_data, scope):
     data = list(xml_data.childNodes)
     print ('Compiling statement container')
     buf = ''
+    
     for statement in data:
         statement_type = statement.tagName
 
@@ -176,24 +188,31 @@ def compileStatements(xml_data, scope):
 def compileLetStatement(xml_data, scope):
     expect_label(xml_data, 'letStatement')
     print('\tCompiling let statement')
+    global marker
+    mark = marker + ' potato'
+    marker = ''
     data = list(xml_data.childNodes)
     var_name = str(data[1].firstChild.nodeValue).strip()
     var_full_name = str(scope.kindOf(var_name)) + ' ' + str(scope.indexOf(var_name))
-
     buf = ''
     if (data[2].firstChild.nodeValue.strip() == '['):   # accessing array element
         print('\t\tAccessing array')
         array_exp = data[3]
         rvalue_exp = data[6]
-
+        buf += "ARRAY ARRAY ARRAY ARRAY"
         buf += compileExpression(array_exp, scope)
     else:
         rvalue_exp = data[3]
-    print("Pop-Push variable named " + str(var_name))
+    print("Pop-Push variable named " + str(var_full_name) + '\tLabel is ' + mark)
+    
+    
+    # buf += "COMPILE EXPRESSION IN\n"
     buf += compileExpression(rvalue_exp, scope)
+    # buf += "COMPILE EXPRESSION OUT\n"
     buf += 'pop ' + var_full_name + '\n'
+    buf += mark
     buf += 'push ' + var_full_name + '\n'
-
+    marker = ''
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
@@ -232,10 +251,14 @@ def compileIfStatement(xml_data, scope):
 def compileWhileStatement(xml_data, scope):
     expect_label(xml_data, 'whileStatement')
     print('\tCompiling while statement')
+    global marker
     data = list(xml_data.childNodes)
     buf = ''
     cond_exp = data[2]
     statement_body = data[5]
+    print ("Marker: " + marker)
+    marker = make_label('WHILE')
+    print ("Marker: " + marker)
 
     buf += compileExpression(cond_exp, scope)
     buf += compileStatements(statement_body, scope)
@@ -291,7 +314,8 @@ def compileReturnStatement(xml_data, scope):
 def compileExpression(xml_data, scope):
     expect_label(xml_data, 'expression')
     print('\tCompiling Expression')
-
+    
+    
     terms = list(xml_data.childNodes)
 
     if (len(terms) == 1): # expression is a constant, a nested expression, unary operation or function call
@@ -304,10 +328,16 @@ def compileExpression(xml_data, scope):
     #     return str(term) + str(operation)
     
     elif (len(terms) == 3): # expression is (term op term)
-        operation = handleBinaryOpSymbol(str(terms[1].firstChild.nodeValue).strip(), terms[1], scope)
         left_term = extractTerm(terms[0], scope)
+        operation = handleBinaryOpSymbol(str(terms[1].firstChild.nodeValue).strip(), terms[1], scope)
         right_term = extractTerm(terms[2], scope)
         return str(left_term) + str(right_term) + str(operation)
+        # if (marker != ""):
+        #     ret = 'label ' + str(marker) + '\n' + str(left_term) + str(right_term) + str(operation)
+        #     marker = ""
+        #     return ret
+        # else:
+        #     return str(left_term) + str(right_term) + str(operation)
     
     elif (len(terms) == 4): # expression is array[expression]
         array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
@@ -404,7 +434,7 @@ def keywordConstant(keyword):
     if (keyword in ['null', 'false']):
         return 'push constant 0\n'
     elif (keyword == 'true'):
-        return 'push constant 0\nneg\n'
+        return 'push constant 0\nnot\n'
     elif (keyword == 'this'):
         return 'push pointer 0\n' # TODO do we need this?
 
