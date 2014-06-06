@@ -59,7 +59,7 @@ class ScopeChain:
     def varCount(self, declaration_type):
         if (declaration_type == 'static'):
             return len(self.static_variables)
-        elif (declaration_type == 'field'):
+        elif (declaration_type in ['field', 'this']):
             return len(self.field_variables)
         elif (declaration_type == 'argument'):
             return len(self.argument_variables)
@@ -76,7 +76,7 @@ class ScopeChain:
         elif (var_name in self.static_variables):
             return 'static'
         elif (var_name in self.field_variables):
-            return 'field'
+            return 'this'
         else:
             return None
 

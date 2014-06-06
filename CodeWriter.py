@@ -90,28 +90,27 @@ def compileFunctionDeclaration(xml_data, scope):
     function_declare_mode = func_data[0].firstChild.nodeValue.strip()
     function_return_type = func_data[1].firstChild.nodeValue.strip()
     function_name = func_data[2].firstChild.nodeValue.strip()
-    function_args, arg_count = compileFunctionArguments(func_data[4], scope)
-    function_body, field_count = compileFunctionBody(func_data[6], scope)
+    arg_count = compileFunctionArguments(func_data[4], scope)
+    function_body, field_count = compileFunctionBody(func_data[6], scope, function_declare_mode)
 
     print("Recognized function declaration for function " + str(function_name) + '\tArgument count' + str(arg_count))
 
     scope.defineFunction(function_name, function_declare_mode, scope.getClassName())
 
     print('\tFunction data: (' + function_declare_mode + ') ' + function_return_type + ' ' + function_name)
-    print('Arguments: ' + str(function_args) + ' Count: ' + str(field_count))
-    print(function_args)
+
+    buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(field_count) + '\n'
 
     if (function_declare_mode == 'constructor'):
-        buf += "CTOR\n"
+        buf += 'push constant ' + str(scope.varCount('field')) + '\n' + 'call Memory.alloc 1\n' + 'pop pointer 0\n'
     elif (function_declare_mode == 'method'):
-        buf += "METHOD\n"
+        pass
+        # buf += "METHOD\n"
     elif (function_declare_mode == 'function'):
         pass
     else:
         raise NotImplementedError
 
-    buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(field_count) + '\n'
-    buf += function_args
     buf += function_body
     # destroy the nodes we compiled
 
@@ -125,7 +124,7 @@ def compileFunctionArguments(parameterList, scope):
     scope.pushNewScope()
     expect_label(parameterList, 'parameterList')
     print('Compiling parameter list')
-    buf = ''
+
     params = list(parameterList.childNodes)
     count = 0
     if (len(params) == 1 and params[0].nodeValue == '\n'):
@@ -145,7 +144,7 @@ def compileFunctionArguments(parameterList, scope):
     # destroy the nodes we compiled
     parameterList.parentNode.removeChild(parameterList)
     parameterList.unlink()
-    return buf, count
+    return count
 
 def compileFunctionBody(body, scope, mode='function'):
     print("Compiling function body")
@@ -162,6 +161,7 @@ def compileFunctionBody(body, scope, mode='function'):
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
+
     return statements, str(args)
     
 def compileVarDeclaration(declaration, scope, mode='function'):
@@ -362,7 +362,7 @@ def compileDoStatement(xml_data, scope, mode):
     buf = ''
 
     params_count = 0
-    if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) ;
+    if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) or do Obj.Method( params )
         class_name, is_method = objectOrClass(data[1], scope)
 
         if (is_method):
@@ -373,8 +373,8 @@ def compileDoStatement(xml_data, scope, mode):
         function_name = str(class_name) + '.' + str(data[3].firstChild.nodeValue.strip())
         params = data[5]
 
-    else:
-        function_name = data[1].firstChild.nodeValue.strip()
+    else:   # do func ( params )
+        function_name = scope.getClassName() + '.' + str(data[1].firstChild.nodeValue).strip()
         params = data[3]
 
     for arg in params.childNodes:
@@ -405,7 +405,7 @@ def compileReturnStatement(xml_data, scope, mode):
 
     return buf + 'return\n'
 
-def compileExpression(xml_data, scope, mode):
+def compileExpression(xml_data, scope, mode='function'):
     expect_label(xml_data, 'expression')
     print('\tCompiling Expression')
     
@@ -436,7 +436,7 @@ def compileExpression(xml_data, scope, mode):
     raise Exception('Cannot recognize expression')
 
 
-def extractTerm(root, scope, mode):
+def extractTerm(root, scope, mode='function'):
     expect_label(root, 'term')
     term = root.firstChild
     label = term.nodeName
@@ -495,7 +495,7 @@ def extractTerm(root, scope, mode):
 
 def handleBinaryOpSymbol(sym, node, scope):
     if (sym == '('):
-        return compileExpression(node.nextSibling, scope, mode)
+        return compileExpression(node.nextSibling, scope)
     elif (sym == '+'):
         return 'add\n'
     elif (sym == '-'):
