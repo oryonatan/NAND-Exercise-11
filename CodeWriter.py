@@ -13,11 +13,6 @@ def expect_values(xml_data, desired_values):
     if (str(xml_data.firstChild.nodeValue).strip() not in desired_values):
         raise Exception('Label should be in' + str(desired_values) + '; instead got ' + xml_data.firstChild.nodeValue)
 
-# def make_label(tag=''):
-#     global label_count
-#     label_count += 1
-#     return 'reservedLabel' + tag + str(label_count) + '\n'
-
 def set_marker(tag=''):
     global label_count
     global marker
@@ -64,8 +59,7 @@ def compileClassDeclaration(xml_data, scope):
         if (operation == 'subroutineDec'):
             buf += compileClassBody(class_data[0], scope)
         elif (operation == 'classVarDec'):
-            #buf +=
-            compileVarDeclaration(class_data[0], scope)
+            compileClassVarDeclaration(class_data[0], scope)
         elif (operation == 'symbol' and class_data[0].firstChild.nodeValue.strip() == '}'):
             print('Finished compiling class subroutines and variables')
         else:
@@ -107,10 +101,21 @@ def compileFunctionDeclaration(xml_data, scope):
     print('Arguments: ' + str(function_args) + ' Count: ' + str(field_count))
     print(function_args)
 
+    if (function_declare_mode == 'constructor'):
+        buf += "CTOR\n"
+    elif (function_declare_mode == 'method'):
+        buf += "METHOD\n"
+    elif (function_declare_mode == 'function'):
+        pass
+    else:
+        raise NotImplementedError
+
     buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(field_count) + '\n'
     buf += function_args
     buf += function_body
     # destroy the nodes we compiled
+
+    # TODO: consider clearing the local scope here
 
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
@@ -126,7 +131,7 @@ def compileFunctionArguments(parameterList, scope):
     if (len(params) == 1 and params[0].nodeValue == '\n'):
         print('\tFunction accepts zero arguments')
 
-    else: # TODO: this entire block feels conceptually wrong. We do need to add the arguments to the scope, but we don't need to count them. Instead, we count the arguments in the function body.
+    else:
         while (params): # don't actually need to push the declaration anywhere, just add them to local scope and push them into ARG register.
             declaration_kind = 'argument'
             var_type = params.pop(0).firstChild.nodeValue.strip()
@@ -142,7 +147,7 @@ def compileFunctionArguments(parameterList, scope):
     parameterList.unlink()
     return buf, count
 
-def compileFunctionBody(body, scope):
+def compileFunctionBody(body, scope, mode='function'):
     print("Compiling function body")
     data = list(body.childNodes)
     data = data[1:-1]   # remove first and last elements ( '{' and '}' )
@@ -151,19 +156,16 @@ def compileFunctionBody(body, scope):
     while (data):
         action = data[0].tagName
         if (action == 'varDec'):
-            args += compileVarDeclaration(data[0], scope)
+            args += compileVarDeclaration(data[0], scope, mode)
         elif (action == 'statements'):
-            statements = str(compileStatements(data[0], scope))
+            statements = str(compileStatements(data[0], scope, mode))
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
     return statements, str(args)
     
-def compileVarDeclaration(declaration, scope):
-    try:
-        expect_label(declaration, 'varDec')
-    except Exception:
-        expect_label(declaration, 'classVarDec')
+def compileVarDeclaration(declaration, scope, mode='function'):
+    expect_label(declaration, 'varDec')
 
     var_count = 0
     data = list(declaration.childNodes)
@@ -181,7 +183,26 @@ def compileVarDeclaration(declaration, scope):
     # Variable declarations do not generate code. It's enough to update the scope with data.
     return var_count
 
-def compileStatements(xml_data, scope):
+def compileClassVarDeclaration(declaration, scope, mode='function'):
+    expect_label(declaration, 'classVarDec')
+
+    var_count = 0
+    data = list(declaration.childNodes)
+    print ('Compiling class variable declaration section')
+    declaration_kind = data.pop(0).firstChild.nodeValue.strip()
+    var_type = data.pop(0).firstChild.nodeValue.strip()
+
+    while (data):
+        var_name = data.pop(0).firstChild.nodeValue.strip()
+        scope.define(var_name, var_type, declaration_kind)
+        var_count += 1
+        print('\tAdded variable: ' + str(declaration_kind) + ' ' + str(var_type) + ' ' + str(var_name))
+        data.pop(0) # discard delimiter
+
+    # Variable declarations do not generate code. It's enough to update the scope with data.
+    return var_count
+
+def compileStatements(xml_data, scope, mode='function'):
     expect_label(xml_data, 'statements')
     data = list(xml_data.childNodes)
     print ('Compiling statement container')
@@ -191,21 +212,21 @@ def compileStatements(xml_data, scope):
         statement_type = statement.tagName
 
         if (statement_type == 'letStatement'):
-            buf += compileLetStatement(statement, scope)
+            buf += compileLetStatement(statement, scope, mode)
         elif (statement_type == 'ifStatement'):
-            buf += compileIfStatement(statement, scope)
+            buf += compileIfStatement(statement, scope, mode)
         elif (statement_type == 'whileStatement'):
-            buf += compileWhileStatement(statement, scope)
+            buf += compileWhileStatement(statement, scope, mode)
         elif (statement_type == 'doStatement'):
-            buf += compileDoStatement(statement, scope)
+            buf += compileDoStatement(statement, scope, mode)
         elif (statement_type == 'returnStatement'):
-            buf += compileReturnStatement(statement, scope)
+            buf += compileReturnStatement(statement, scope, mode)
         else:
             raise Exception('Unknown statement type')
     return buf
 
 
-def compileLetStatement(xml_data, scope):
+def compileLetStatement(xml_data, scope, mode):
     expect_label(xml_data, 'letStatement')
     print('\tCompiling let statement')
 
@@ -218,13 +239,13 @@ def compileLetStatement(xml_data, scope):
         array_exp = data[3]
         rvalue_exp = data[6]
         buf += "ARRAY ARRAY ARRAY ARRAY"
-        buf += compileExpression(array_exp, scope)
+        buf += compileExpression(array_exp, scope, mode)
     else:
         rvalue_exp = data[3]
     #print("Pop-Push variable named " + str(var_full_name) + '\tLabel is ' + mark)
     
 
-    buf += compileExpression(rvalue_exp, scope)
+    buf += compileExpression(rvalue_exp, scope, mode)
     buf += 'pop ' + var_full_name + '\n'
     buf += get_marker()
 
@@ -233,7 +254,7 @@ def compileLetStatement(xml_data, scope):
     xml_data.unlink()
     return buf
 
-def compileIfStatement(xml_data, scope):
+def compileIfStatement(xml_data, scope, mode):
     expect_label(xml_data, 'ifStatement')
     data = list(xml_data.childNodes)
 
@@ -244,7 +265,7 @@ def compileIfStatement(xml_data, scope):
     if (len(data) == 11):
         else_statement = data[9]
         # Evaluate condition
-        buf += compileExpression(cond_exp, scope)
+        buf += compileExpression(cond_exp, scope, mode)
 
         # Jump instruction if condition is true
         set_marker('IF-TRUE')
@@ -258,7 +279,7 @@ def compileIfStatement(xml_data, scope):
 
         # If block body
         buf += 'label ' + true_label
-        buf += compileStatements(statement_body, scope)
+        buf += compileStatements(statement_body, scope, mode)
 
         # Jump to termination of If block body (skip Else instructions)
         set_marker('IF-EXIT')
@@ -267,14 +288,14 @@ def compileIfStatement(xml_data, scope):
 
         # Else block body
         buf += 'label ' + false_label
-        buf += compileStatements(else_statement, scope)
+        buf += compileStatements(else_statement, scope, mode)
 
         # Termination of If body
         buf += 'label ' + exit_label
 
     elif (len(data) == 7):
         # Evaluate condition
-        buf += compileExpression(cond_exp, scope)
+        buf += compileExpression(cond_exp, scope, mode)
 
         # Jump instruction if condition is true
         set_marker('IF-TRUE')
@@ -288,7 +309,7 @@ def compileIfStatement(xml_data, scope):
 
         # If block body
         buf += 'label ' + true_label
-        buf += compileStatements(statement_body, scope)
+        buf += compileStatements(statement_body, scope, mode)
 
         # Termination of If body
         buf += 'label ' + false_label
@@ -302,7 +323,7 @@ def compileIfStatement(xml_data, scope):
     xml_data.unlink()
     return buf
 
-def compileWhileStatement(xml_data, scope):
+def compileWhileStatement(xml_data, scope, mode):
     expect_label(xml_data, 'whileStatement')
 
     buf = ''
@@ -312,10 +333,10 @@ def compileWhileStatement(xml_data, scope):
     statement_body = data[5]
 
     # Set label for condition evaluation
-    set_marker('WHILE_CONDITION')
+    set_marker('WHILE_COND')
     cond_marker = get_marker()
     buf += 'label ' + cond_marker
-    buf += compileExpression(cond_exp, scope)
+    buf += compileExpression(cond_exp, scope, mode)
     buf += 'not\n'
     # Set loop exit point and create jump instruction
     set_marker('WHILE_END')
@@ -334,7 +355,7 @@ def compileWhileStatement(xml_data, scope):
     xml_data.unlink()
     return buf
 
-def compileDoStatement(xml_data, scope):
+def compileDoStatement(xml_data, scope, mode):
     expect_label(xml_data, 'doStatement')
     data = list(xml_data.childNodes)
     print('\tCompiling do statement')
@@ -361,7 +382,7 @@ def compileDoStatement(xml_data, scope):
             break
         if (str(arg.firstChild.nodeValue).strip() == ','):
             continue
-        buf += str(compileExpression(arg, scope))
+        buf += str(compileExpression(arg, scope, mode))
         params_count += 1
 
     buf += 'call ' + function_name + ' ' + str(params_count) + '\n' + 'pop temp 0\n'
@@ -369,7 +390,7 @@ def compileDoStatement(xml_data, scope):
     return buf
 
 
-def compileReturnStatement(xml_data, scope):
+def compileReturnStatement(xml_data, scope, mode):
     expect_label(xml_data, 'returnStatement')
     data = list(xml_data.childNodes)
     print("\tCompiling return statement")
@@ -377,14 +398,14 @@ def compileReturnStatement(xml_data, scope):
     
     if (data[1].tagName == 'expression'):
         print("\t\tReturn statement returns value")
-        buf += compileExpression(data[1], scope)
+        buf += compileExpression(data[1], scope, mode)
     else:
         print("\t\tReturn statement has no value")
         buf += 'push constant 0\n'
 
     return buf + 'return\n'
 
-def compileExpression(xml_data, scope):
+def compileExpression(xml_data, scope, mode):
     expect_label(xml_data, 'expression')
     print('\tCompiling Expression')
     
@@ -392,7 +413,7 @@ def compileExpression(xml_data, scope):
     terms = list(xml_data.childNodes)
 
     if (len(terms) == 1): # expression is a constant, a nested expression, unary operation or function call
-        return str(extractTerm(terms[0], scope))
+        return str(extractTerm(terms[0], scope, mode))
 
     elif (len(terms) == 2): # expression is an unary operation
         raise Exception('Seems we actually do get expressions of length 2')
@@ -401,21 +422,21 @@ def compileExpression(xml_data, scope):
     #     return str(term) + str(operation)
     
     elif (len(terms) == 3): # expression is (term op term)
-        left_term = extractTerm(terms[0], scope)
+        left_term = extractTerm(terms[0], scope, mode)
         operation = handleBinaryOpSymbol(str(terms[1].firstChild.nodeValue).strip(), terms[1], scope)
-        right_term = extractTerm(terms[2], scope)
+        right_term = extractTerm(terms[2], scope, mode)
         return str(left_term) + str(right_term) + str(operation)
     
     elif (len(terms) == 4): # expression is array[expression]
         array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
-        array_exp = str(compileExpression(terms[2], scope)).strip()
+        array_exp = str(compileExpression(terms[2], scope, mode)).strip()
         print(str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect')
         return str(array_name) + str(array_exp)
 
     raise Exception('Cannot recognize expression')
 
 
-def extractTerm(root, scope):
+def extractTerm(root, scope, mode):
     expect_label(root, 'term')
     term = root.firstChild
     label = term.nodeName
@@ -450,7 +471,7 @@ def extractTerm(root, scope):
                     if (param.nodeName == 'symbol' and str(param.firstChild.nodeValue).strip() == ','): # delimiter; but what about parens?
                         continue
                     param_count += 1    # TODO: might need a more sophisticated thing here, since we can have junk symbols.
-                    buf += str(compileExpression(param, scope))
+                    buf += str(compileExpression(param, scope, mode))
 
                 buf += 'call ' + str(class_name) + '.' + str(func_name) + ' ' + str(param_count) + '\n'
                 return buf
@@ -463,9 +484,9 @@ def extractTerm(root, scope):
 
     elif (label == 'symbol'):           # parentheses around expression or unary operation
         if (str(term.firstChild.nodeValue).strip() in ['-','~']):
-            return extractTerm(term.nextSibling, scope) + handleUnaryOpSymbol(str(term.firstChild.nodeValue).strip())
+            return extractTerm(term.nextSibling, scope, mode) + handleUnaryOpSymbol(str(term.firstChild.nodeValue).strip())
         elif (str(term.firstChild.nodeValue).strip() == '('):
-            return compileExpression(term.nextSibling, scope)
+            return compileExpression(term.nextSibling, scope, mode)
         else:
             raise NotImplementedError
 
@@ -474,7 +495,7 @@ def extractTerm(root, scope):
 
 def handleBinaryOpSymbol(sym, node, scope):
     if (sym == '('):
-        return compileExpression(node.nextSibling, scope)
+        return compileExpression(node.nextSibling, scope, mode)
     elif (sym == '+'):
         return 'add\n'
     elif (sym == '-'):
