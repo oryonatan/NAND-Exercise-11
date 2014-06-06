@@ -162,6 +162,9 @@ def compileFunctionBody(body, scope, mode='function'):
             raise Exception('Unknown operation in function body')
         data.pop(0)
 
+    if (mode == 'method'):
+        statements = 'push argument 0\n' + 'pop pointer 0\n' + statements
+
     return statements, str(args)
     
 def compileVarDeclaration(declaration, scope, mode='function'):
