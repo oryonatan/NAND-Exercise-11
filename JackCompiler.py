@@ -13,15 +13,15 @@ if __name__ == '__main__':
 
     xml_data, file_names = analyze(root_dir)
 
-    debug_mode = False
+    dump_xml = False
     # debug_mode = True
-    if debug_mode:
+    if dump_xml:
         print("Compiler Module debug mode activated\n")
         print("=" * 30)
 
     for i in range(len(xml_data)):
         print("\n\n\nCompiling file #" + str(i + 1) + " (" + file_names[i] + ")")
-        if debug_mode:
+        if dump_xml:
             # print("Parser debug mode: parsing file #" + str(i + 1) + " (" + file_names[i] + ")")
             print("~" * 20)
             print(xml_data[0].toprettyxml())
@@ -35,5 +35,5 @@ if __name__ == '__main__':
             with open(file_names[i].replace('.jack', '.vm'), 'w') as f:
                 f.write(source_code)
 
-    if debug_mode:
+    if dump_xml:
         print("\n\nAll processing finished")

@@ -92,6 +92,19 @@ class ScopeChain:
         else:
             return None
 
+    def typeOf(self, var_name):
+        if (var_name in self.argument_variables):
+            return self.argument_variables[var_name][1]
+        elif (var_name in self.local_variables):
+            return self.local_variables[var_name][1]
+        elif (var_name in self.static_variables):
+            return self.static_variables[var_name][1]
+        elif (var_name in self.field_variables):
+            return self.field_variables[var_name][1]
+        else:
+            return None
+
+
     def getClassName(self):
         return self.class_name
 

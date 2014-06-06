@@ -21,21 +21,17 @@ def expect_values(xml_data, desired_values):
 def set_marker(tag=''):
     global label_count
     global marker
-    print('set marker to ' + str(tag))
     if (tag == '' or tag is None):
         marker = ''
     else:
         marker = str(tag) + str(label_count)
-        #marker = 'reservedLabel_' + str(label_count) + '_' + str(tag)
         label_count += 1
 
 def get_marker():
     global marker
-    print('marker empty')
     if (len(marker) > 0):
         old_mark = marker
         marker = ''
-        print('reset marker')
         return old_mark + '\n'
 
     return ''
@@ -68,7 +64,8 @@ def compileClassDeclaration(xml_data, scope):
         if (operation == 'subroutineDec'):
             buf += compileClassBody(class_data[0], scope)
         elif (operation == 'classVarDec'):
-            buf += compileVarDeclaration(class_data[0], scope)
+            #buf +=
+            compileVarDeclaration(class_data[0], scope)
         elif (operation == 'symbol' and class_data[0].firstChild.nodeValue.strip() == '}'):
             print('Finished compiling class subroutines and variables')
         else:
@@ -308,7 +305,7 @@ def compileIfStatement(xml_data, scope):
 
 def compileWhileStatement(xml_data, scope):
     expect_label(xml_data, 'whileStatement')
-    print('\tCompiling while statement')
+
     buf = ''
     data = list(xml_data.childNodes)
 
@@ -345,7 +342,16 @@ def compileDoStatement(xml_data, scope):
     buf = ''
     params_count = 0
     if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) ;
-        function_name = str(data[1].firstChild.nodeValue.strip()) + '.' + str(data[3].firstChild.nodeValue.strip())
+        obj = str(data[1].firstChild.nodeValue).strip()
+        if (scope.indexOf(obj) is not None):
+            class_name = scope.typeOf(obj)
+        else:
+            class_name = obj
+
+        if (scope.indexOf(str(data[1].firstChild.nodeValue).strip())):
+            params_count += 1   # TODO handle method
+
+        function_name = class_name + '.' + str(data[3].firstChild.nodeValue.strip())
         params = data[5]
     
     else:
@@ -355,6 +361,8 @@ def compileDoStatement(xml_data, scope):
     # TODO: there might be another implementation detail I am missing here regarding functions' owning classes
     # TODO: can use scope.getFunctionsWithName and scope.getFunctionData to get the necessary information
     for arg in params.childNodes:
+        if (str(arg.nodeValue) == '\n'):
+            break
         if (str(arg.firstChild.nodeValue).strip() == ','):
             continue
         buf += str(compileExpression(arg, scope))
@@ -429,12 +437,22 @@ def extractTerm(root, scope):
         print('\t\tIn identifier sub-block')
         siblings = list(term.parentNode.childNodes)
         buf = ''
+        param_count = 0
         if (len(siblings) > 4):
             if (str(siblings[1].firstChild.nodeValue).strip() == '.'): # Class.Function(expressionList);
-                class_name = str(siblings[0].firstChild.nodeValue).strip()
+                obj = str(siblings[0].firstChild.nodeValue).strip()
+                if (scope.indexOf(obj)):
+                    class_name = scope.typeOf(obj)
+                else:
+                    class_name = obj
+
                 func_name = str(siblings[2].firstChild.nodeValue).strip()
-                param_count = 0
+
                 for param in siblings[4].childNodes:
+                    if (param.nodeValue == '\n'):   # empty parameter list
+                        break
+                    if (param.nodeName == 'symbol' and str(param.firstChild.nodeValue).strip() == ','): # delimiter; but what about parens?
+                        continue
                     param_count += 1    # TODO: might need a more sophisticated thing here, since we can have junk symbols.
                     buf += str(compileExpression(param, scope))
 

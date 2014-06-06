@@ -4,6 +4,9 @@ easy:
 moderate:
 	python JackCompiler.py ConvertToBin
 
+hard:
+	python JackCompiler.py Square
+
 testSeven:
 	@rm -f sevenOutput.log
 	python JackCompiler.py Seven > sevenOutput.log
