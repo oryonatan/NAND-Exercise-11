@@ -227,7 +227,6 @@ def compileLetStatement(xml_data, scope):
     buf += compileExpression(rvalue_exp, scope)
     buf += 'pop ' + var_full_name + '\n'
     buf += get_marker()
-    #buf += 'push ' + var_full_name + '\n'
 
     # remove nodes for garbage collection
     xml_data.parentNode.removeChild(xml_data)
@@ -340,26 +339,23 @@ def compileDoStatement(xml_data, scope):
     data = list(xml_data.childNodes)
     print('\tCompiling do statement')
     buf = ''
+
     params_count = 0
     if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) ;
-        obj = str(data[1].firstChild.nodeValue).strip()
-        if (scope.indexOf(obj) is not None):
-            class_name = scope.typeOf(obj)
-        else:
-            class_name = obj
+        class_name, is_method = objectOrClass(data[1], scope)
 
-        if (scope.indexOf(str(data[1].firstChild.nodeValue).strip())):
-            params_count += 1   # TODO handle method
+        if (is_method):
+            obj_name = str(data[1].firstChild.nodeValue).strip()
+            params_count += 1
+            buf += 'push ' + str(scope.kindOf(obj_name)) + ' ' + str(scope.indexOf(obj_name)) + '\n'
 
-        function_name = class_name + '.' + str(data[3].firstChild.nodeValue.strip())
+        function_name = str(class_name) + '.' + str(data[3].firstChild.nodeValue.strip())
         params = data[5]
-    
+
     else:
         function_name = data[1].firstChild.nodeValue.strip()
         params = data[3]
-    
-    # TODO: there might be another implementation detail I am missing here regarding functions' owning classes
-    # TODO: can use scope.getFunctionsWithName and scope.getFunctionData to get the necessary information
+
     for arg in params.childNodes:
         if (str(arg.nodeValue) == '\n'):
             break
@@ -440,13 +436,13 @@ def extractTerm(root, scope):
         param_count = 0
         if (len(siblings) > 4):
             if (str(siblings[1].firstChild.nodeValue).strip() == '.'): # Class.Function(expressionList);
-                obj = str(siblings[0].firstChild.nodeValue).strip()
-                if (scope.indexOf(obj)):
-                    class_name = scope.typeOf(obj)
-                else:
-                    class_name = obj
-
+                class_name, is_method = objectOrClass(siblings[0], scope)
                 func_name = str(siblings[2].firstChild.nodeValue).strip()
+
+                if (is_method):
+                    obj_name = str(siblings[0].firstChild.nodeValue).strip()
+                    param_count += 1
+                    buf += 'push ' + scope.kindOf(obj_name) + ' ' + scope.indexOf(obj_name) + '\n'
 
                 for param in siblings[4].childNodes:
                     if (param.nodeValue == '\n'):   # empty parameter list
@@ -526,3 +522,10 @@ def stringConstant(string):
         buf += 'push constant ' + str(int(c)) + '\ncall String.appendChar 2\n'
 
     return buf
+
+def objectOrClass(obj_node, scope):
+    node_name = str(obj_node.firstChild.nodeValue).strip()
+    if (scope.indexOf(node_name) is not None):
+        return scope.typeOf(node_name), True
+    else:
+        return node_name, False
