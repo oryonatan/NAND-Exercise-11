@@ -226,6 +226,8 @@ def compileStatements(xml_data, scope, mode='function'):
             buf += compileDoStatement(statement, scope, mode)
         elif (statement_type == 'returnStatement'):
             buf += compileReturnStatement(statement, scope, mode)
+        elif (statement_type == 'symbol' and str(statement.firstChild.nodeValue) == '}'):
+            return buf
         else:
             raise Exception('Unknown statement type')
     return buf
@@ -342,6 +344,10 @@ def compileWhileStatement(xml_data, scope, mode):
 
     cond_exp = data[2]
     statement_body = data[5]
+    empty_body = False
+
+    if (str(statement_body.firstChild.nodeValue).strip() == '}'):
+        empty_body = True
 
     # Set label for condition evaluation
     set_marker('WHILE_COND')
@@ -356,7 +362,8 @@ def compileWhileStatement(xml_data, scope, mode):
     buf += 'if-goto ' + end_marker
 
     # Perform iteration
-    buf += compileStatements(statement_body, scope)
+    if (not empty_body):
+        buf += compileStatements(statement_body, scope)
     buf += 'goto ' + cond_marker
 
     # Set finish point
