@@ -449,7 +449,7 @@ def compileExpression(xml_data, scope, mode='function'):
         array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
         array_exp = str(compileExpression(terms[2], scope, mode)).strip()
         print(str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect')
-        return str(array_name) + str(array_exp)
+        return str(array_name) + str(array_exp) + 'TROLLFACE\n'
 
     raise Exception('Cannot recognize expression')
 
@@ -485,7 +485,7 @@ def extractTerm(root, scope, mode='function'):
                 for param in siblings[4].childNodes:
                     if (param.nodeValue == '\n'):   # empty parameter list
                         break
-                    if (param.nodeName == 'symbol' and str(param.firstChild.nodeValue).strip() == ','): # delimiter; but what about parens?
+                    if (param.nodeName == 'symbol' and str(param.firstChild.nodeValue).strip() == ','): # delimiter; but what about parens or array access?
                         continue
                     param_count += 1    # TODO: might need a more sophisticated thing here, since we can have junk symbols in complex expressions.
                     buf += str(compileExpression(param, scope, mode))
@@ -493,8 +493,15 @@ def extractTerm(root, scope, mode='function'):
                 buf += 'call ' + str(class_name) + '.' + str(func_name) + ' ' + str(param_count) + '\n'
                 return buf
 
+        elif (term.nextSibling is not None and term.nextSibling.nodeName == 'symbol'):
+            arr_name = str(term.firstChild.nodeValue).strip()
+            buf += compileExpression(term.nextSibling.nextSibling, scope)
+            buf += 'push ' + str(scope.kindOf(arr_name)) + ' ' + str(scope.indexOf(arr_name)) + '\n'
+            buf += 'add\n'
+            buf += 'pop pointer 1\n' + 'push that 0\n'
+            return buf
+
         else:   # assuming it's a variable
-            # TODO add array detection and handling
             var_name = str(term.firstChild.nodeValue).strip()
             return 'push ' + str(scope.kindOf(var_name)) + ' ' + str(scope.indexOf(var_name)) + '\n'
 
@@ -532,7 +539,7 @@ def handleBinaryOpSymbol(sym, node, scope):
         return 'lt\n'
     elif (sym == '>'):
         return 'gt\n'
-    print(sym)
+
     raise NotImplementedError
 
 def handleUnaryOpSymbol(sym):
@@ -568,11 +575,3 @@ def objectOrClass(obj_node, scope):
         return scope.typeOf(node_name), True
     else:
         return node_name, False
-
-def assignArray(xml_data, scope):
-    array_name = str(xml_data.firstChild.nodeValue).strip()
-    array_top = 'push ' + str(scope.kindOf(array_name)) + ' ' + str(scope.indexOf(array_name)) + '\n'
-
-    array_exp = compileExpression(xml_data.nextSibling.nextSibling, scope)
-
-    return  str(array_exp) + str(array_top) + 'add\n' + 'pop pointer 1\n' + 'push that 0\n'
