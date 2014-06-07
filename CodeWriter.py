@@ -162,8 +162,8 @@ def compileFunctionBody(body, scope, mode='function'):
             raise Exception('Unknown operation in function body')
         data.pop(0)
 
-    if (mode == 'method'):
-        statements = 'push argument 0\n' + 'pop pointer 0\n' + statements
+    # if (mode == 'method'):
+    #     statements = 'push argument 0\n' + 'pop pointer 0\n' + statements
 
     return statements, str(args)
     
@@ -365,20 +365,23 @@ def compileDoStatement(xml_data, scope, mode):
     buf = ''
 
     params_count = 0
-    if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) or do Obj.Method( params )
-        class_name, is_method = objectOrClass(data[1], scope)
 
-        if (is_method):
+    if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) or do Obj.Method( params )
+        class_name, called_from_object = objectOrClass(data[1], scope)
+
+        if (called_from_object):
             obj_name = str(data[1].firstChild.nodeValue).strip()
             params_count += 1
             buf += 'push ' + str(scope.kindOf(obj_name)) + ' ' + str(scope.indexOf(obj_name)) + '\n'
 
         function_name = str(class_name) + '.' + str(data[3].firstChild.nodeValue.strip())
         params = data[5]
+        function_type = scope.getFunctionData(str(data[3].firstChild.nodeValue.strip()), class_name)
 
     else:   # do func ( params )
         function_name = scope.getClassName() + '.' + str(data[1].firstChild.nodeValue).strip()
         params = data[3]
+        function_type = scope.getFunctionData(str(data[1].firstChild.nodeValue).strip(), scope.getClassName())
 
     for arg in params.childNodes:
         if (str(arg.nodeValue) == '\n'):
@@ -386,6 +389,10 @@ def compileDoStatement(xml_data, scope, mode):
         if (str(arg.firstChild.nodeValue).strip() == ','):
             continue
         buf += str(compileExpression(arg, scope, mode))
+        params_count += 1
+
+    if (function_type is not None):
+        buf += 'push pointer 0\n'
         params_count += 1
 
     buf += 'call ' + function_name + ' ' + str(params_count) + '\n' + 'pop temp 0\n'
