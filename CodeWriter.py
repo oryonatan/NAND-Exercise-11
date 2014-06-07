@@ -186,7 +186,6 @@ def compileVarDeclaration(declaration, scope, mode='function'):
         var_name = data.pop(0).firstChild.nodeValue.strip()
         scope.define(var_name, var_type, declaration_kind)
         var_count += 1
-        print('\tAdded variable: ' + str(declaration_kind) + ' ' + str(var_type) + ' ' + str(var_name))
         data.pop(0) # discard delimiter
 
     # Variable declarations do not generate code. It's enough to update the scope with data.
@@ -197,7 +196,7 @@ def compileClassVarDeclaration(declaration, scope, mode='function'):
 
     var_count = 0
     data = list(declaration.childNodes)
-    print ('Compiling class variable declaration section')
+
     declaration_kind = data.pop(0).firstChild.nodeValue.strip()
     var_type = data.pop(0).firstChild.nodeValue.strip()
 
@@ -205,7 +204,6 @@ def compileClassVarDeclaration(declaration, scope, mode='function'):
         var_name = data.pop(0).firstChild.nodeValue.strip()
         scope.define(var_name, var_type, declaration_kind)
         var_count += 1
-        print('\tAdded variable: ' + str(declaration_kind) + ' ' + str(var_type) + ' ' + str(var_name))
         data.pop(0) # discard delimiter
 
     # Variable declarations do not generate code. It's enough to update the scope with data.
@@ -214,7 +212,6 @@ def compileClassVarDeclaration(declaration, scope, mode='function'):
 def compileStatements(xml_data, scope, mode='function'):
     expect_label(xml_data, 'statements')
     data = list(xml_data.childNodes)
-    print ('Compiling statement container')
     buf = ''
     
     for statement in data:
@@ -367,7 +364,6 @@ def compileWhileStatement(xml_data, scope, mode):
 def compileDoStatement(xml_data, scope, mode):
     expect_label(xml_data, 'doStatement')
     data = list(xml_data.childNodes)
-    print('\tCompiling do statement')
     buf = ''
 
     params_count = 0
@@ -416,14 +412,12 @@ def compileReturnStatement(xml_data, scope, mode):
         print("\t\tReturn statement returns value")
         buf += compileExpression(data[1], scope, mode)
     else:
-        print("\t\tReturn statement has no value")
         buf += 'push constant 0\n'
 
     return buf + 'return\n'
 
 def compileExpression(xml_data, scope, mode='function'):
     expect_label(xml_data, 'expression')
-    print('\tCompiling Expression')
     
     
     terms = list(xml_data.childNodes)
@@ -464,10 +458,9 @@ def extractTerm(root, scope, mode='function'):
         return 'push constant ' + str(term.firstChild.nodeValue).strip() + '\n'
 
     elif (label == 'stringConstant'):   # generate string
-        return stringConstant(str(term.firstChild.nodeValue).strip())
+        return stringConstant(str(term.firstChild.nodeValue)[1:-1])
 
     elif (label == 'identifier'):       # load variable from scope
-        print('\t\tIn identifier sub-block')
         siblings = list(term.parentNode.childNodes)
         buf = ''
         param_count = 0
@@ -556,7 +549,7 @@ def stringConstant(string):
     str_len = len(string)
     buf += 'push constant '+ str(str_len)  + '\ncall String.new 1\n'
     for c in list(string):
-        buf += 'push constant ' + str(int(c)) + '\ncall String.appendChar 2\n'
+        buf += 'push constant ' + str(ord(c)) + '\ncall String.appendChar 2\n'
 
     return buf
 
