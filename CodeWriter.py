@@ -528,7 +528,6 @@ def extractTerm(root, scope, mode='function'):
                 return buf
 
             elif (str(term.nextSibling.firstChild.nodeValue).strip() == '('):  # implicit function invocation
-                func_name = str(term.firstChild.nodeValue).strip()
                 func_data = scope.getFunctionData(str(term.firstChild.nodeValue).strip(), scope.getClassName())
                 func_name = func_data[0]
                 func_type = func_data[1]
@@ -548,11 +547,31 @@ def extractTerm(root, scope, mode='function'):
                 return buf
 
             elif (str(term.nextSibling.firstChild.nodeValue).strip() == '.'):  # explicit function invocation
-                data = term.parentNode.childNodes
-                class_name = str(data[0].firstChild.nodeValue).strip()
-                func_name = str(data[2].firstChild.nodeValue).strip()
-                params = data[4]
-                pass
+                nodes = term.parentNode.childNodes
+
+                class_name = str(nodes[0].firstChilde.nodeValue).strip()
+                func_name = str(nodes[2].firstChilde.nodeValue).strip()
+
+                if (scope.indexOf(class_name) is not None):
+                    param_count += 1
+                    class_name = scope.kindOf(class_name)
+
+                func_data = scope.getFunctionData(class_name, func_name)
+                func_type = func_data[1]
+
+                if (func_type == 'method'):
+                    buf += 'push pointer 0\n'
+                    param_count += 1
+
+                params = term.nextSibling.nextSibling
+                for arg in params.childNodes:
+                    if (arg.nodeName == 'symbol'):
+                        continue
+                    buf += compileExpression(arg, scope, mode)
+                    param_count += 1
+
+                buf += 'call ' + str(class_name) + '.' + str(func_name) + ' ' + str(param_count) + '\n'
+                return buf
 
         else:   # assuming it's a variable
             var_name = str(term.firstChild.nodeValue).strip()
