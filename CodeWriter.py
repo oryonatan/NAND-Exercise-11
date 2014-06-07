@@ -47,11 +47,22 @@ def encode(xml_data):
 
 def compileClassDeclaration(xml_data, scope):
     class_data = list(xml_data.childNodes)
-    class_name = class_data[1].firstChild.nodeValue
+    class_name = str(class_data[1].firstChild.nodeValue).strip()
     scope.setClassName(class_name)
     buf = ''
 
     class_data = class_data[3:] # discard previously handled elements
+
+    # Scan all function declarations into scope before compilation begins
+    func_declarations = xml_data
+    for func_root in func_declarations.childNodes:
+        if (func_root.nodeName == 'subroutineDec'):
+            func_data = func_root.childNodes    # TODO might want to add the function return type as well
+            func_visibility = str(func_data[0].firstChild.nodeValue).strip()
+            # func_type = str(func_data[1].firstChild.nodeValue).strip()
+            func_name = str(func_data[2].firstChild.nodeValue).strip()
+            scope.defineFunction(func_name, func_visibility, class_name)
+
 
     while (class_data):
         operation = class_data[0].tagName
@@ -386,8 +397,8 @@ def compileDoStatement(xml_data, scope, mode):
         buf += str(compileExpression(arg, scope, mode))
         params_count += 1
 
-    if (function_type is not None and function_type[2] == 'method'): # TODO might need to add this to Let statements, maybe externalize. Also fix the condition as it does not work.
-        buf += 'push pointer 0BANANANABANABABNABGIADSGA\n'
+    if (function_type is not None and function_type[1] == 'method'): # TODO might need to add this to Let statements, maybe externalize. Also fix the condition as it does not work.
+        buf += 'push pointer 0\n'
         params_count += 1
 
     buf += 'call ' + function_name + ' ' + str(params_count) + '\n' + 'pop temp 0\n'
