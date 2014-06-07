@@ -371,7 +371,7 @@ def compileDoStatement(xml_data, scope, mode):
     expect_label(xml_data, 'doStatement')
     data = list(xml_data.childNodes)
     buf = ''
-
+    pushed = False
     params_count = 0
 
     if (data[2].firstChild.nodeValue.strip() == '.'):   # do Class.Function( params ) or do Obj.Method( params )
@@ -390,6 +390,10 @@ def compileDoStatement(xml_data, scope, mode):
         function_name = scope.getClassName() + '.' + str(data[1].firstChild.nodeValue).strip()
         params = data[3]
         function_type = scope.getFunctionData(str(data[1].firstChild.nodeValue).strip(), scope.getClassName())
+        if (function_type is not None and function_type[1] == 'method'):
+            buf += 'push pointer 0\n'
+            params_count += 1
+            pushed = True
 
     for arg in params.childNodes:
         if (str(arg.nodeValue) == '\n'):
@@ -399,7 +403,7 @@ def compileDoStatement(xml_data, scope, mode):
         buf += str(compileExpression(arg, scope, mode))
         params_count += 1
 
-    if (function_type is not None and function_type[1] == 'method'): # TODO might need to add this to Let statements, maybe externalize. Also fix the condition as it does not work.
+    if (not pushed and function_type is not None and function_type[1] == 'method'): # TODO might need to add this to Let statements, maybe externalize. Also fix the condition as it does not work.
         buf += 'push pointer 0\n'
         params_count += 1
 
@@ -449,23 +453,26 @@ def compileExpression(xml_data, scope, mode='function'):
 
     elif (len(terms) % 2 == 1): # term (op term)* with multiple repititions
         parsing_term = True
+
+        term_list = []
+        op_list = []
         buf = ''
-        # term_list = []
-        # op_list = []
+
         while (len(terms) > 0):
             if (parsing_term):
                 node = terms.pop(0)
-                # term_list.append(extractTerm(node, scope, mode))
-                buf += extractTerm(node, scope, mode)
+                term_list.append(extractTerm(node, scope, mode))
                 parsing_term = False
             else:
                 node = terms.pop(0)
-                # op_list.append(str(node.firstChild.nodeValue).strip())
-                buf += handleBinaryOpSymbol(str(node.firstChild.nodeValue).strip(), None, scope)
+                op_list.append(handleBinaryOpSymbol(str(node.firstChild.nodeValue).strip(), None, scope))
                 parsing_term = True
 
+        buf += term_list.pop(0)
+        for (term, op) in zip(term_list, op_list):
+            buf += term
+            buf += op
 
-        # TODO actually parse the things
         return buf
 
 
