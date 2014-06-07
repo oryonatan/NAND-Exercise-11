@@ -238,21 +238,28 @@ def compileLetStatement(xml_data, scope, mode):
 
     data = list(xml_data.childNodes)
     var_name = str(data[1].firstChild.nodeValue).strip()
+    assign_to_array = (str(data[2].firstChild.nodeValue).strip() == '[')
+
     var_full_name = str(scope.kindOf(var_name)) + ' ' + str(scope.indexOf(var_name))
     buf = ''
-    if (data[2].firstChild.nodeValue.strip() == '['):   # accessing array element
-        print('\t\tAccessing array')
-        array_exp = data[3]
+
+    if (assign_to_array):
         rvalue_exp = data[6]
-        buf += "ARRAY ARRAY ARRAY ARRAY"
-        buf += compileExpression(array_exp, scope, mode)
+        arr_exp = data[3]
+        # seek to position in array
+        buf += compileExpression(arr_exp, scope, mode)
+        buf += 'push ' + var_full_name + '\n' + 'add\n'
+
+        # obtain value from rvalue expression
+        buf += compileExpression(rvalue_exp, scope, mode)
+
+        # assign value into position in array
+        buf += 'pop temp 0\n' + 'pop pointer 1\n' + 'push temp 0\n' + 'pop that 0\n'
     else:
         rvalue_exp = data[3]
-    #print("Pop-Push variable named " + str(var_full_name) + '\tLabel is ' + mark)
-    
+        buf += compileExpression(rvalue_exp, scope, mode)
+        buf += 'pop ' + var_full_name + '\n'
 
-    buf += compileExpression(rvalue_exp, scope, mode)
-    buf += 'pop ' + var_full_name + '\n'
     buf += get_marker()
 
     # remove nodes for garbage collection
@@ -268,7 +275,7 @@ def compileIfStatement(xml_data, scope, mode):
     buf = ''
     statement_body = data[5]
 
-    if (len(data) == 11):
+    if (len(data) == 11):   # If statement with Else statement
         else_statement = data[9]
         # Evaluate condition
         buf += compileExpression(cond_exp, scope, mode)
@@ -299,7 +306,7 @@ def compileIfStatement(xml_data, scope, mode):
         # Termination of If body
         buf += 'label ' + exit_label
 
-    elif (len(data) == 7):
+    elif (len(data) == 7):  # If statement without an Else statement
         # Evaluate condition
         buf += compileExpression(cond_exp, scope, mode)
 
@@ -344,6 +351,7 @@ def compileWhileStatement(xml_data, scope, mode):
     buf += 'label ' + cond_marker
     buf += compileExpression(cond_exp, scope, mode)
     buf += 'not\n'
+
     # Set loop exit point and create jump instruction
     set_marker('WHILE_END')
     end_marker = get_marker()
@@ -486,6 +494,7 @@ def extractTerm(root, scope, mode='function'):
                 return buf
 
         else:   # assuming it's a variable
+            # TODO add array detection and handling
             var_name = str(term.firstChild.nodeValue).strip()
             return 'push ' + str(scope.kindOf(var_name)) + ' ' + str(scope.indexOf(var_name)) + '\n'
 
@@ -559,3 +568,11 @@ def objectOrClass(obj_node, scope):
         return scope.typeOf(node_name), True
     else:
         return node_name, False
+
+def assignArray(xml_data, scope):
+    array_name = str(xml_data.firstChild.nodeValue).strip()
+    array_top = 'push ' + str(scope.kindOf(array_name)) + ' ' + str(scope.indexOf(array_name)) + '\n'
+
+    array_exp = compileExpression(xml_data.nextSibling.nextSibling, scope)
+
+    return  str(array_exp) + str(array_top) + 'add\n' + 'pop pointer 1\n' + 'push that 0\n'

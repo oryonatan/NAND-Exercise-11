@@ -3,9 +3,6 @@ __author__ = 'larrath'
 class ScopeChain:
 
     def __init__(self):
-        #self.class_scope = {}
-        #self.chain = [self.class_scope]
-        
         self.static_variables = {}
         self.field_variables = {}
         self.local_variables = {}
@@ -18,13 +15,10 @@ class ScopeChain:
         self.class_name = name.strip()
 
     def pushNewScope(self):
-        #current_scope = {}
         self.local_variables = {}
         self.argument_variables = {}
-        #self.chain.append(current_scope)
 
     def leaveScope(self):
-        #self.chain.pop(-1)
         self.local_variables = {}
         self.argument_variables = {}
 
@@ -39,22 +33,6 @@ class ScopeChain:
             self.argument_variables[var_name] = (var_name, var_type, var_visibility, len(self.argument_variables))
         else:
             raise NotImplementedError("Unknown visibility scope")
-
-        print('='*30 + 'Dumping entire symbol table' + '='*30)
-        print("Local: ")
-        for var_name in self.local_variables:
-            print('\t' + str(self.local_variables[var_name]))
-        print("Argument: ")
-        for var_name in self.argument_variables:
-            print('\t' + str(self.argument_variables[var_name]))
-        print("Static: ")
-        for var_name in self.static_variables:
-            print('\t' + str(self.static_variables[var_name]))
-        print("Field: ")
-        for var_name in self.field_variables:
-            print('\t' + str(self.field_variables[var_name]))
-
-        print('='*30 + 'Symbol table dump complete' + '='*30 + '\n\n')
 
     def varCount(self, declaration_type):
         if (declaration_type == 'static'):
