@@ -50,8 +50,7 @@ def compileClassDeclaration(xml_data, scope):
     class_name = class_data[1].firstChild.nodeValue
     scope.setClassName(class_name)
     buf = ''
-    print('Recognized Class Declaration')
-    print('\tCompiling class body')
+
     class_data = class_data[3:] # discard previously handled elements
 
     while (class_data):
@@ -64,16 +63,17 @@ def compileClassDeclaration(xml_data, scope):
             print('Finished compiling class subroutines and variables')
         else:
             raise Exception('Unknown operation in class body')
+
         class_data.pop(0)
+
     return buf
 
 def compileClassBody(xml_data, scope):
     expect_label(xml_data, 'subroutineDec')
-    print('Recognized class body')
+
     buf = ''
 
     while (xml_data.hasChildNodes()):
-        print('\tbody data length: ' + str(len(xml_data.childNodes)))
         current_top = xml_data.childNodes[0]
         command = str(current_top.firstChild.nodeValue).strip()
         if (command in ['constructor', 'function', 'method']):
@@ -93,19 +93,15 @@ def compileFunctionDeclaration(xml_data, scope):
     arg_count = compileFunctionArguments(func_data[4], scope)
     function_body, field_count = compileFunctionBody(func_data[6], scope, function_declare_mode)
 
-    print("Recognized function declaration for function " + str(function_name) + '\tArgument count' + str(arg_count))
-
     scope.defineFunction(function_name, function_declare_mode, scope.getClassName())
-
-    print('\tFunction data: (' + function_declare_mode + ') ' + function_return_type + ' ' + function_name)
 
     buf += 'function ' + str(scope.getClassName()) + '.' + function_name + ' ' + str(field_count) + '\n'
 
     if (function_declare_mode == 'constructor'):
         buf += 'push constant ' + str(scope.varCount('field')) + '\n' + 'call Memory.alloc 1\n' + 'pop pointer 0\n'
     elif (function_declare_mode == 'method'):
-        pass
-        # buf += "METHOD\n"
+        buf += 'push argument 0\n' + 'pop pointer 0\n'
+
     elif (function_declare_mode == 'function'):
         pass
     else:
@@ -123,23 +119,22 @@ def compileFunctionDeclaration(xml_data, scope):
 def compileFunctionArguments(parameterList, scope):
     scope.pushNewScope()
     expect_label(parameterList, 'parameterList')
-    print('Compiling parameter list')
 
     params = list(parameterList.childNodes)
     count = 0
     if (len(params) == 1 and params[0].nodeValue == '\n'):
-        print('\tFunction accepts zero arguments')
+        return count
 
-    else:
-        while (params): # don't actually need to push the declaration anywhere, just add them to local scope and push them into ARG register.
-            declaration_kind = 'argument'
-            var_type = params.pop(0).firstChild.nodeValue.strip()
-            var_name = params.pop(0).firstChild.nodeValue.strip()
-            count += 1
-            if (params): # discard delimiter, if one exists (last entry has none)
-                params.pop(0)
-            scope.define(var_name, var_type, declaration_kind)
-            print('\tAdded variable {' + str(var_type) + ' ' + str(var_name) +'} to local scope as function parameter')
+    while (params): # don't actually need to push the declaration anywhere, just add them to local scope and push them into ARG register.
+        count += 1
+
+        var_type = params.pop(0).firstChild.nodeValue.strip()
+        var_name = params.pop(0).firstChild.nodeValue.strip()
+        scope.define(var_name, var_type, 'argument')
+
+        if (params): # discard delimiter, if one exists (last entry has none)
+            params.pop(0)
+
 
     # destroy the nodes we compiled
     parameterList.parentNode.removeChild(parameterList)
@@ -162,8 +157,8 @@ def compileFunctionBody(body, scope, mode='function'):
             raise Exception('Unknown operation in function body')
         data.pop(0)
 
-    if (mode == 'method'):
-        statements = 'push argument 0\n' + 'pop pointer 0\n' + statements
+    # if (mode == 'method'):
+    #     statements = 'push argument 0\n' + 'pop pointer 0\n' + statements
 
     return statements, str(args)
     
@@ -391,8 +386,8 @@ def compileDoStatement(xml_data, scope, mode):
         buf += str(compileExpression(arg, scope, mode))
         params_count += 1
 
-    if (function_type is not None): # TODO might need to add this to Let statements
-        buf += 'push pointer 0\n'
+    if (function_type is not None and function_type[2] == 'method'): # TODO might need to add this to Let statements, maybe externalize. Also fix the condition as it does not work.
+        buf += 'push pointer 0BANANANABANABABNABGIADSGA\n'
         params_count += 1
 
     buf += 'call ' + function_name + ' ' + str(params_count) + '\n' + 'pop temp 0\n'
