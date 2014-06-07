@@ -426,8 +426,7 @@ def compileReturnStatement(xml_data, scope, mode):
 
 def compileExpression(xml_data, scope, mode='function'):
     expect_label(xml_data, 'expression')
-    
-    
+
     terms = list(xml_data.childNodes)
 
     if (len(terms) == 1): # expression is a constant, a nested expression, unary operation or function call
@@ -446,10 +445,11 @@ def compileExpression(xml_data, scope, mode='function'):
         return str(left_term) + str(right_term) + str(operation)
     
     elif (len(terms) == 4): # expression is array[expression]
-        array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
-        array_exp = str(compileExpression(terms[2], scope, mode)).strip()
-        print(str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect')
-        return str(array_name) + str(array_exp) + 'TROLLFACE\n'
+        raise Exception("Yeah no")
+        # array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
+        # array_exp = str(compileExpression(terms[2], scope, mode)).strip()
+        # print(str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect')
+        # return str(array_name) + str(array_exp) + 'TROLLFACE\n'
 
     elif (len(terms) % 2 == 1): # term (op term)* with multiple repititions
         parsing_term = True
@@ -519,12 +519,40 @@ def extractTerm(root, scope, mode='function'):
                 return buf
 
         elif (term.nextSibling is not None and term.nextSibling.nodeName == 'symbol'):
-            arr_name = str(term.firstChild.nodeValue).strip()
-            buf += compileExpression(term.nextSibling.nextSibling, scope)
-            buf += 'push ' + str(scope.kindOf(arr_name)) + ' ' + str(scope.indexOf(arr_name)) + '\n'
-            buf += 'add\n'
-            buf += 'pop pointer 1\n' + 'push that 0\n'
-            return buf
+            if (str(term.nextSibling.firstChild.nodeValue).strip() == '['):    # array access
+                arr_name = str(term.firstChild.nodeValue).strip()
+                buf += compileExpression(term.nextSibling.nextSibling, scope)
+                buf += 'push ' + str(scope.kindOf(arr_name)) + ' ' + str(scope.indexOf(arr_name)) + '\n'
+                buf += 'add\n'
+                buf += 'pop pointer 1\n' + 'push that 0\n'
+                return buf
+
+            elif (str(term.nextSibling.firstChild.nodeValue).strip() == '('):  # implicit function invocation
+                func_name = str(term.firstChild.nodeValue).strip()
+                func_data = scope.getFunctionData(str(term.firstChild.nodeValue).strip(), scope.getClassName())
+                func_name = func_data[0]
+                func_type = func_data[1]
+
+                if (func_type == 'method'):
+                    buf += 'push pointer 0\n'
+                    param_count += 1
+
+                params = term.nextSibling.nextSibling
+                for arg in params.childNodes:
+                    if (arg.nodeName == 'symbol'):
+                        continue
+                    buf += compileExpression(arg, scope, mode)
+                    param_count += 1
+
+                buf += 'call ' + str(scope.getClassName()) + '.' + str(func_name) + ' ' + str(param_count) + '\n'
+                return buf
+
+            elif (str(term.nextSibling.firstChild.nodeValue).strip() == '.'):  # explicit function invocation
+                data = term.parentNode.childNodes
+                class_name = str(data[0].firstChild.nodeValue).strip()
+                func_name = str(data[2].firstChild.nodeValue).strip()
+                params = data[4]
+                pass
 
         else:   # assuming it's a variable
             var_name = str(term.firstChild.nodeValue).strip()
