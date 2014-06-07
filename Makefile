@@ -13,6 +13,9 @@ average:
 pong:
 	python JackCompiler.py Pong
 
+final:
+	python JackCompiler.py ComplexArrays
+
 testSeven:
 	@rm -f sevenOutput.log
 	python JackCompiler.py Seven > sevenOutput.log
@@ -47,4 +50,4 @@ clean:
 	@rm -f complexArraysOutput.log
 	@rm -f convertToBinOutput.log
 
-.PHONY: clean testSeven testPong testAverage testSquare testComplexArrays testConvertToBin test tiny easy moderate hard average pong
+.PHONY: clean testSeven testPong testAverage testSquare testComplexArrays testConvertToBin test tiny easy moderate hard average pong final
