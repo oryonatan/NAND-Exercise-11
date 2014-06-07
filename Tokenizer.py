@@ -3,7 +3,9 @@ __author__ = 'yonatan'
 import os
 import xml.dom.minidom as minidom
 import re
+import sys
 
+java_style_escape = False
 
 keywords = ('class',
             'constructor',
@@ -30,7 +32,7 @@ symbols = set("~{}()[].,;+-*/&|<>=-")
 
 
 def clean_inline_comments(line):
-    line = re.sub("//.*", '', line).strip()
+    #line = re.sub("//.*", '', line).strip()
     return line
 
 
@@ -44,6 +46,9 @@ def append_to_top(XML, element_type, char):
 def append_string(XML, all_text, i):
     end_of_string = all_text.find('"', i + 1)
     tmp_str = all_text[i + 1: end_of_string]
+    if java_style_escape:
+        tmp_str = re.sub("\\\\t", "\t", tmp_str)  # java mishandles tabs in strings   :(
+        tmp_str = re.sub("/\\\\", "/", tmp_str)  # java mishandles some escaping
     append_to_top(XML, "stringConstant", tmp_str)
     return end_of_string
 
@@ -65,12 +70,48 @@ def append_keyword_or_identifier(XML, all_text, i):
     return i + len(tmp_str) - 1
 
 
+def clean_comments(text):
+    i = 0
+    in_string = False
+    text_copy = []
+    while i < len(text):
+        char = text[i]
+        if char == '"':
+            in_string = not in_string
+            text_copy.append(char)
+
+        elif not in_string and text[i:i+2] == "//":
+            i+=2
+            while text[i] != "\n":
+                i+=1
+
+
+        elif text[i:i+2] == "/*" and in_string:
+            text_copy.append(char)
+
+        elif text[i:i+2] == "/*" and not in_string:
+            i+=2
+            while text[i:i+2] != "*/":
+                i+=1
+            i+=1
+            text_copy.append(" ")
+
+        elif char != "\n":
+            text_copy.append(char)
+        i +=  1
+
+    return "".join(text_copy)
+
+
+
+
+
 def create_XML(filename):
     with open(filename) as f:
-        file_lines = f.readlines()
-    file_lines = list(map(clean_inline_comments, file_lines))  # remove spaces
-    all_text = " ".join(file_lines)
-    all_text = re.sub("/\*.*?\*/", '', all_text)  # remove comments /* */
+        all_text = f.read()
+    #file_lines = list(map(clean_inline_comments, file_lines))  # remove spaces
+    #all_text = " ".join(file_lines)
+    all_text = clean_comments(all_text)
 
     XML = minidom.getDOMImplementation().createDocument(None, "tokens", None)
 
@@ -86,7 +127,7 @@ def create_XML(filename):
         elif tmp_str.isdigit():
             i = append_number(XML, all_text, i, tmp_str)
 
-        elif tmp_str is ' ':
+        elif tmp_str in (' ', '\t'):
             pass
 
         else:
@@ -106,6 +147,7 @@ def tokenize(filename):
                   for file_path in os.listdir(filename)
                   if file_path.endswith(".jack")])
     for file in files:
+        print(file)
         xml_files.append(create_XML(file))
 
 #        if debug:
@@ -117,3 +159,34 @@ def tokenize(filename):
 #                f.write(xm.documentElement.toprettyxml())
 
     return xml_files, files
+
+
+
+if __name__ == '__main__':
+    debug = False
+    if debug:
+        print("DEBUG")
+
+    try:
+        file_name = sys.argv[1]
+    except IndexError:
+        print("No input file name")
+        exit()
+    files = []
+
+    if file_name.endswith(".jack"):
+        files.append(file_name)
+    else:
+        files = ([file_name + os.sep + file_path
+                  for file_path in os.listdir(file_name)
+                  if file_path.endswith(".jack")])
+    for file in files:
+        xm = create_XML(file)
+
+        if debug:
+            print(xm.documentElement.toprettyxml())
+            with open(file.replace('.jack', '_debug_.xml'), 'w') as f:
+                f.write(xm.documentElement.toprettyxml())
+        else:
+            with open(file.replace('.jack', '.xml'), 'w') as f:
+                f.write(xm.documentElement.toprettyxml())

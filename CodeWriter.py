@@ -270,7 +270,7 @@ def compileLetStatement(xml_data, scope, mode):
 def compileIfStatement(xml_data, scope, mode):
     expect_label(xml_data, 'ifStatement')
     data = list(xml_data.childNodes)
-
+    # TODO in order to pass the CaveShooterBall tester, we need to support function calling as arguments (as in WhileStatement).
     cond_exp = data[2]
     buf = ''
     statement_body = data[5]
