@@ -101,7 +101,7 @@ def compileFunctionDeclaration(xml_data, scope):
     function_declare_mode = func_data[0].firstChild.nodeValue.strip()
     function_return_type = func_data[1].firstChild.nodeValue.strip()
     function_name = func_data[2].firstChild.nodeValue.strip()
-    arg_count = compileFunctionArguments(func_data[4], scope)
+    arg_count = compileFunctionArguments(func_data[4], scope, function_declare_mode)
     function_body, field_count = compileFunctionBody(func_data[6], scope, function_declare_mode)
 
     scope.defineFunction(function_name, function_declare_mode, scope.getClassName())
@@ -127,9 +127,12 @@ def compileFunctionDeclaration(xml_data, scope):
     xml_data.unlink()
     return buf
 
-def compileFunctionArguments(parameterList, scope):
+def compileFunctionArguments(parameterList, scope, mode):
     scope.pushNewScope()
     expect_label(parameterList, 'parameterList')
+
+    if (mode == 'method'):
+        scope.define('placeholder', 'NoType', 'argument')
 
     params = list(parameterList.childNodes)
     count = 0
@@ -153,7 +156,6 @@ def compileFunctionArguments(parameterList, scope):
     return count
 
 def compileFunctionBody(body, scope, mode='function'):
-    print("Compiling function body")
     data = list(body.childNodes)
     data = data[1:-1]   # remove first and last elements ( '{' and '}' )
     statements = ''
@@ -167,9 +169,6 @@ def compileFunctionBody(body, scope, mode='function'):
         else:
             raise Exception('Unknown operation in function body')
         data.pop(0)
-
-    # if (mode == 'method'):
-    #     statements = 'push argument 0\n' + 'pop pointer 0\n' + statements
 
     return statements, str(args)
     
@@ -234,7 +233,6 @@ def compileStatements(xml_data, scope, mode='function'):
 
 def compileLetStatement(xml_data, scope, mode):
     expect_label(xml_data, 'letStatement')
-    print('\tCompiling let statement')
 
     data = list(xml_data.childNodes)
     var_name = str(data[1].firstChild.nodeValue).strip()
@@ -413,11 +411,9 @@ def compileDoStatement(xml_data, scope, mode):
 def compileReturnStatement(xml_data, scope, mode):
     expect_label(xml_data, 'returnStatement')
     data = list(xml_data.childNodes)
-    print("\tCompiling return statement")
     buf = ''
     
     if (data[1].tagName == 'expression'):
-        print("\t\tReturn statement returns value")
         buf += compileExpression(data[1], scope, mode)
     else:
         buf += 'push constant 0\n'
@@ -451,6 +447,28 @@ def compileExpression(xml_data, scope, mode='function'):
         print(str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect')
         return str(array_name) + str(array_exp) + 'TROLLFACE\n'
 
+    elif (len(terms) % 2 == 1): # term (op term)* with multiple repititions
+        parsing_term = True
+        buf = ''
+        # term_list = []
+        # op_list = []
+        while (len(terms) > 0):
+            if (parsing_term):
+                node = terms.pop(0)
+                # term_list.append(extractTerm(node, scope, mode))
+                buf += extractTerm(node, scope, mode)
+                parsing_term = False
+            else:
+                node = terms.pop(0)
+                # op_list.append(str(node.firstChild.nodeValue).strip())
+                buf += handleBinaryOpSymbol(str(node.firstChild.nodeValue).strip(), None, scope)
+                parsing_term = True
+
+
+        # TODO actually parse the things
+        return buf
+
+
     raise Exception('Cannot recognize expression')
 
 
@@ -480,7 +498,7 @@ def extractTerm(root, scope, mode='function'):
                 if (is_method):
                     obj_name = str(siblings[0].firstChild.nodeValue).strip()
                     param_count += 1
-                    buf += 'push ' + scope.kindOf(obj_name) + ' ' + scope.indexOf(obj_name) + '\n'
+                    buf += 'push ' + str(scope.kindOf(obj_name)) + ' ' + str(scope.indexOf(obj_name)) + '\n'
 
                 for param in siblings[4].childNodes:
                     if (param.nodeValue == '\n'):   # empty parameter list
