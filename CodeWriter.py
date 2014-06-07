@@ -162,8 +162,8 @@ def compileFunctionBody(body, scope, mode='function'):
             raise Exception('Unknown operation in function body')
         data.pop(0)
 
-    # if (mode == 'method'):
-    #     statements = 'push argument 0\n' + 'pop pointer 0\n' + statements
+    if (mode == 'method'):
+        statements = 'push argument 0\n' + 'pop pointer 0\n' + statements
 
     return statements, str(args)
     
@@ -391,7 +391,7 @@ def compileDoStatement(xml_data, scope, mode):
         buf += str(compileExpression(arg, scope, mode))
         params_count += 1
 
-    if (function_type is not None):
+    if (function_type is not None): # TODO might need to add this to Let statements
         buf += 'push pointer 0\n'
         params_count += 1
 
@@ -480,7 +480,7 @@ def extractTerm(root, scope, mode='function'):
                         break
                     if (param.nodeName == 'symbol' and str(param.firstChild.nodeValue).strip() == ','): # delimiter; but what about parens?
                         continue
-                    param_count += 1    # TODO: might need a more sophisticated thing here, since we can have junk symbols.
+                    param_count += 1    # TODO: might need a more sophisticated thing here, since we can have junk symbols in complex expressions.
                     buf += str(compileExpression(param, scope, mode))
 
                 buf += 'call ' + str(class_name) + '.' + str(func_name) + ' ' + str(param_count) + '\n'
