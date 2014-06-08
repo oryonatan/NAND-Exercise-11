@@ -95,10 +95,14 @@ class ScopeChain:
 
     def getFunctionData(self, func_name, class_name):
         if (func_name in self.functions):
-            for entry in self.functions[func_name]:
-                for sub_list in entry:
-                    if (sub_list[2] == class_name):
-                        return sub_list
+            if (len(self.functions[func_name]) == 1):
+                if (self.functions[func_name][0][2] == class_name):
+                    return self.functions[func_name][0]
+            else:
+                for entry in self.functions[func_name]:
+                    for sub_list in entry:
+                        if (sub_list[2] == class_name):
+                            return sub_list
 
         return None
 
