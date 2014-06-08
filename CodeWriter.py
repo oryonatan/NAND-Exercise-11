@@ -346,7 +346,7 @@ def compileWhileStatement(xml_data, scope, mode):
     statement_body = data[5]
     empty_body = False
 
-    if (str(statement_body.firstChild.nodeValue).strip() == '}'):
+    if (str(statement_body.firstChild.nodeValue).strip() == '}' or (statement_body.firstChild.nodeValue) == '\n'):
         empty_body = True
 
     # Set label for condition evaluation
