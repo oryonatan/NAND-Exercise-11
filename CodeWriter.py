@@ -42,7 +42,6 @@ def encode(xml_data):
     scope = ScopeChain()
 
     result = compileClassDeclaration(xml_data, scope)
-    print('Encoding complete.')
     return result
 
 def compileClassDeclaration(xml_data, scope):
@@ -57,9 +56,8 @@ def compileClassDeclaration(xml_data, scope):
     func_declarations = xml_data
     for func_root in func_declarations.childNodes:
         if (func_root.nodeName == 'subroutineDec'):
-            func_data = func_root.childNodes    # TODO might want to add the function return type as well
+            func_data = func_root.childNodes
             func_visibility = str(func_data[0].firstChild.nodeValue).strip()
-            # func_type = str(func_data[1].firstChild.nodeValue).strip()
             func_name = str(func_data[2].firstChild.nodeValue).strip()
             scope.defineFunction(func_name, func_visibility, class_name)
 
@@ -71,7 +69,7 @@ def compileClassDeclaration(xml_data, scope):
         elif (operation == 'classVarDec'):
             compileClassVarDeclaration(class_data[0], scope)
         elif (operation == 'symbol' and class_data[0].firstChild.nodeValue.strip() == '}'):
-            print('Finished compiling class subroutines and variables')
+            pass
         else:
             raise Exception('Unknown operation in class body')
 
@@ -121,8 +119,6 @@ def compileFunctionDeclaration(xml_data, scope):
     buf += function_body
     # destroy the nodes we compiled
 
-    # TODO: consider clearing the local scope here
-
     xml_data.parentNode.removeChild(xml_data)
     xml_data.unlink()
     return buf
@@ -139,7 +135,7 @@ def compileFunctionArguments(parameterList, scope, mode):
     if (len(params) == 1 and params[0].nodeValue == '\n'):
         return count
 
-    while (params): # don't actually need to push the declaration anywhere, just add them to local scope and push them into ARG register.
+    while (params):
         count += 1
 
         var_type = params.pop(0).firstChild.nodeValue.strip()
@@ -177,7 +173,7 @@ def compileVarDeclaration(declaration, scope, mode='function'):
 
     var_count = 0
     data = list(declaration.childNodes)
-    print ('Compiling variable declaration section')
+
     declaration_kind = data.pop(0).firstChild.nodeValue.strip()
     var_type = data.pop(0).firstChild.nodeValue.strip()
 
@@ -274,8 +270,6 @@ def compileIfStatement(xml_data, scope, mode):
     cond_exp = data[2]
     buf = ''
     statement_body = data[5]
-    empty_if_body = False
-    empty_else_body = False
 
     if (len(data) == 11):   # If statement with Else statement
         else_statement = data[9]
@@ -419,7 +413,7 @@ def compileDoStatement(xml_data, scope, mode):
         buf += str(compileExpression(arg, scope, mode))
         params_count += 1
 
-    if (not pushed and function_type is not None and function_type[1] == 'method'): # TODO might need to add this to Let statements, maybe externalize. Also fix the condition as it does not work.
+    if (not pushed and function_type is not None and function_type[1] == 'method'):
         buf += 'push pointer 0\n'
         params_count += 1
 
@@ -448,24 +442,11 @@ def compileExpression(xml_data, scope, mode='function'):
     if (len(terms) == 1): # expression is a constant, a nested expression, unary operation or function call
         return str(extractTerm(terms[0], scope, mode))
 
-    elif (len(terms) == 2): # expression is an unary operation
-        raise Exception('Seems we actually do get expressions of length 2')
-    #     operation = handleUnaryOpSymbol(str(terms[0].firstChild.nodeValue).strip())
-    #     term = extractTerm(terms[1], scope)
-    #     return str(term) + str(operation)
-    
     elif (len(terms) == 3): # expression is (term op term)
         left_term = extractTerm(terms[0], scope, mode)
         operation = handleBinaryOpSymbol(str(terms[1].firstChild.nodeValue).strip(), terms[1], scope)
         right_term = extractTerm(terms[2], scope, mode)
         return str(left_term) + str(right_term) + str(operation)
-    
-    elif (len(terms) == 4): # expression is array[expression]
-        raise Exception("Yeah no")
-        # array_name = str(terms[0].firstChild.nodeValue).strip()  # TODO: might need to go to firstChild.firstChild
-        # array_exp = str(compileExpression(terms[2], scope, mode)).strip()
-        # print(str(array_name) + str(array_exp) + ' <-- temporary code, actually incorrect')
-        # return str(array_name) + str(array_exp) + 'TROLLFACE\n'
 
     elif (len(terms) % 2 == 1): # term (op term)* with multiple repititions
         parsing_term = True
@@ -526,9 +507,9 @@ def extractTerm(root, scope, mode='function'):
                 for param in siblings[4].childNodes:
                     if (param.nodeValue == '\n'):   # empty parameter list
                         break
-                    if (param.nodeName == 'symbol' and str(param.firstChild.nodeValue).strip() == ','): # delimiter; but what about parens or array access?
+                    if (param.nodeName == 'symbol' and str(param.firstChild.nodeValue).strip() == ','):
                         continue
-                    param_count += 1    # TODO: might need a more sophisticated thing here, since we can have junk symbols in complex expressions.
+                    param_count += 1
                     buf += str(compileExpression(param, scope, mode))
 
                 buf += 'call ' + str(class_name) + '.' + str(func_name) + ' ' + str(param_count) + '\n'
@@ -646,7 +627,7 @@ def keywordConstant(keyword):
     elif (keyword == 'true'):
         return 'push constant 0\nnot\n'
     elif (keyword == 'this'):
-        return 'push pointer 0\n' # TODO do we need this?
+        return 'push pointer 0\n'
 
     raise NotImplementedError
 
