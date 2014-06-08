@@ -1,0 +1,149 @@
+// This file is part of the materials accompanying the book 
+// "The Elements of Computing Systems" by Nisan and Schocken, 
+// MIT Press. Book site: www.idc.ac.il/tecs
+// File name: projects/12/Screen.jack
+
+/**
+ * Graphic screen library.
+ */
+class Screen {
+
+    static Array twoPowers;
+    static boolean color;
+    static int start;
+    static int end;
+
+    /** Initializes the Screen. 
+    function void init() {
+	var int k, i;
+	let start = 16384;
+	let end = 24576;
+	let color = true;
+
+    	let twoPowers = Array.new(16);
+    	let i = 0;
+    	let k = 1;
+    	while (i < 16){
+    	   let twoPowers[i] = k;
+    	   let k = k + k;
+    	   let i = i + 1;
+    	}
+    	return;
+    }
+    */
+
+    /** Erases the whole screen. 
+    function void clearScreen() {
+	var int i;
+	let i = start;
+	while( i < end) {
+	  do Memory.poke(i , false);
+	  let i = i + 1;
+	}
+	return;
+    }
+    */
+
+    /** Sets the color to be used in further draw commands
+     *  where white = false, black = true. 
+    function void setColor(boolean b) {
+	let color = b;
+	return;
+    }
+     */
+
+    /** Draws the (x, y) pixel. */
+    function void drawPixel(int x, int y) {
+	var int loc, whichBit , value;
+	let whichBit = Screen.modulu(x,16);
+	let loc = (x/16) + (32*y) + start;
+	let value = Memory.peek(loc);
+	if (color){
+	    let value = (twoPowers[whichBit] | value);
+	}
+	else {
+	    let value = ((~(twoPowers[whichBit])) & value);
+	}
+	do Memory.poke(loc, value);
+	return;
+    }
+    
+    /*
+    function int modulu(int x ,int y){
+	return (x - Math.multiply(y,Math.divide(x,y)));
+    }
+*/
+    /** Draws a line from pixel (x1, y1) to (x2, y2). */
+    function void drawLine(int x1, int y1, int x2, int y2) {
+	var int a, b, dx, dy, adyMinusbdx;
+	let a = 0;
+	let b = 0;
+
+	let adyMinusbdx = 0;
+	let dx = x2 - x1;
+	if (dx < 0){ //swap x1 x2, y1 y2 - so always dx>=0
+          let y1 = y1 + y2;
+	  let y2 = y1 - y2;
+	  let y1 = y1 - y2;
+	  let x1 = x1 + x2;
+	  let x2 = x1 - x2;
+	  let x1 = x1 - x2;
+	  let dx = -dx;
+	}
+
+	let dy = y2 - y1;
+	if (dy<0) {
+		while ((~(a > dx)) & (~(b < dy))){ 
+	   	 do Screen.drawPixel(x1 + a , y1 + b);
+		    if (adyMinusbdx < 0){
+				let a = a + 1;
+	   	 	let adyMinusbdx = adyMinusbdx - dy;
+		    }
+		    else {
+			    let b = b - 1;
+		   	 let adyMinusbdx = adyMinusbdx - dx;
+		 	}
+		}
+	} else {
+		while ((~(a > dx)) & (~(b > dy))){ 
+	   	 do Screen.drawPixel(x1 + a , y1 + b);
+		    if ((adyMinusbdx < 0) | (dy = 0)){
+				let a = a + 1;
+	   	 	let adyMinusbdx = adyMinusbdx + dy;
+		    }
+		    else {
+			    let b = b + 1;
+		   	 let adyMinusbdx = adyMinusbdx - dx;
+		 	}
+		}
+	}
+	
+	return;
+    }
+
+    /** Draws a filled rectangle where the top left corner
+     *  is (x1, y1) and the bottom right corner is (x2, y2). */
+    function void drawRectangle(int x1, int y1, int x2, int y2) {
+	var int tmp;
+	let tmp = y1;
+	while (~( tmp > y2 )){
+	   do Screen.drawLine(x1,tmp,x2,tmp);
+	   let tmp = tmp + 1;
+	}
+	return;
+    }
+
+    /** Draws a filled circle of radius r around (cx, cy). */
+    function void drawCircle(int cx, int cy, int r) {
+		var int dy , ax, bx;
+		let dy = -r;
+		while (dy < (r + 1)){
+	   	 let ax = cx - Math.sqrt((r*r)-(dy*dy));
+	    	let bx = cx + Math.sqrt((r*r)-(dy*dy));
+	    	do Screen.drawLine(ax, cy + dy, bx, cy + dy);
+	    	let dy = dy + 1;
+		}
+		return;
+
+    }
+}

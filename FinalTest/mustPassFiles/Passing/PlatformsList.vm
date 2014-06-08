@@ -1,0 +1,129 @@
+function PlatformsList.new 0
+push constant 2
+call Memory.alloc 1
+pop pointer 0
+push constant 0
+pop this 0
+push constant 0
+pop this 1
+push pointer 0
+return
+function PlatformsList.moveUp 1
+push argument 0
+pop pointer 0
+push this 0
+push constant 0
+eq
+if-goto IF-TRUE0
+goto IF-FALSE1
+label IF-TRUE0
+push constant 0
+return
+label IF-FALSE1
+push this 0
+pop local 0
+label WHILE_COND2
+push local 0
+call Platform.hasNext 1
+not
+if-goto WHILE_END3
+push local 0
+call Platform.moveUp 1
+pop temp 0
+push local 0
+call Platform.getNext 1
+pop local 0
+goto WHILE_COND2
+label WHILE_END3
+push constant 0
+return
+function PlatformsList.add 0
+push argument 0
+pop pointer 0
+push this 0
+push constant 0
+eq
+if-goto IF-TRUE4
+goto IF-FALSE5
+label IF-TRUE4
+push argument 1
+pop this 0
+push argument 1
+pop this 1
+push constant 0
+return
+label IF-FALSE5
+push this 1
+push argument 1
+call Platform.setNext 2
+pop temp 0
+push argument 1
+pop this 1
+push constant 0
+return
+function PlatformsList.removePlatform 0
+push argument 0
+pop pointer 0
+push this 0
+push constant 0
+eq
+if-goto IF-TRUE6
+goto IF-FALSE7
+label IF-TRUE6
+push constant 0
+return
+label IF-FALSE7
+push this 0
+call Platform.hasNext 1
+if-goto IF-TRUE8
+goto IF-FALSE9
+label IF-TRUE8
+push this 0
+call Platform.getNext 1
+pop this 0
+push constant 0
+return
+label IF-FALSE9
+push constant 0
+pop this 0
+push constant 0
+pop this 1
+push constant 0
+return
+function PlatformsList.isOnPlatform 1
+push argument 0
+pop pointer 0
+push this 0
+push constant 0
+eq
+if-goto IF-TRUE10
+goto IF-FALSE11
+label IF-TRUE10
+push constant 0
+return
+label IF-FALSE11
+push this 0
+pop local 0
+label WHILE_COND12
+push local 0
+call Platform.hasNext 1
+not
+if-goto WHILE_END13
+push local 0
+push argument 1
+push argument 2
+call Platform.isOnPlatform 3
+if-goto IF-TRUE14
+goto IF-FALSE15
+label IF-TRUE14
+push constant 0
+not
+return
+label IF-FALSE15
+push local 0
+call Platform.getNext 1
+pop local 0
+goto WHILE_COND12
+label WHILE_END13
+push constant 0
+return
