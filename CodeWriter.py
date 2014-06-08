@@ -270,10 +270,12 @@ def compileLetStatement(xml_data, scope, mode):
 def compileIfStatement(xml_data, scope, mode):
     expect_label(xml_data, 'ifStatement')
     data = list(xml_data.childNodes)
-    # TODO in order to pass the CaveShooterBall tester, we need to support function calling as arguments (as in WhileStatement).
+
     cond_exp = data[2]
     buf = ''
     statement_body = data[5]
+    empty_if_body = False
+    empty_else_body = False
 
     if (len(data) == 11):   # If statement with Else statement
         else_statement = data[9]
@@ -292,7 +294,10 @@ def compileIfStatement(xml_data, scope, mode):
 
         # If block body
         buf += 'label ' + true_label
-        buf += compileStatements(statement_body, scope, mode)
+
+        empty_if_body = (statement_body.firstChild.nodeValue == '\n')
+        if (not empty_if_body):
+            buf += compileStatements(statement_body, scope, mode)
 
         # Jump to termination of If block body (skip Else instructions)
         set_marker('IF-EXIT')
@@ -301,7 +306,9 @@ def compileIfStatement(xml_data, scope, mode):
 
         # Else block body
         buf += 'label ' + false_label
-        buf += compileStatements(else_statement, scope, mode)
+        empty_else_body = (else_statement.firstChild.nodeValue == '\n')
+        if (not empty_else_body):
+            buf += compileStatements(else_statement, scope, mode)
 
         # Termination of If body
         buf += 'label ' + exit_label
@@ -322,7 +329,9 @@ def compileIfStatement(xml_data, scope, mode):
 
         # If block body
         buf += 'label ' + true_label
-        buf += compileStatements(statement_body, scope, mode)
+        empty_if_body = (statement_body.firstChild.nodeValue == '\n')
+        if (not empty_if_body):
+            buf += compileStatements(statement_body, scope, mode)
 
         # Termination of If body
         buf += 'label ' + false_label
