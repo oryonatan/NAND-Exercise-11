@@ -1,3 +1,6 @@
+all:
+	chmod +x JackCompiler
+
 easy:
 	python3 JackCompiler.py Seven
 
@@ -50,4 +53,4 @@ clean:
 	@rm -f complexArraysOutput.log
 	@rm -f convertToBinOutput.log
 
-.PHONY: clean testSeven testPong testAverage testSquare testComplexArrays testConvertToBin test tiny easy moderate hard average pong final
+.PHONY: clean testSeven testPong testAverage testSquare testComplexArrays testConvertToBin test tiny easy moderate hard average pong final all

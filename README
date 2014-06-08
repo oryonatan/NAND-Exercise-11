@@ -12,7 +12,7 @@ SymbolTable.py		-	Variable scoping data structure
 CodeWriter.py		-	Code Generator
 README			    -	This file
 JackCompiler        -   Executable
-
+Makefile            -   Makefile
 
 Remarks : None
 
