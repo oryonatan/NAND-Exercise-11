@@ -11,7 +11,7 @@ def expect_label(xml_data, desired_value):
 
 def expect_values(xml_data, desired_values):
     if (str(xml_data.firstChild.nodeValue).strip() not in desired_values):
-        raise Exception('Label should be in' + str(desired_values) + '; instead got ' + xml_data.firstChild.nodeValue)
+        raise Exception('Label should be in' + str(desired_values) + '; instead got ' + xml_data.firstChild.nodeValue) 
 
 def set_marker(tag=''):
     global label_count

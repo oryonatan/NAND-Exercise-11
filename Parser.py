@@ -39,7 +39,6 @@ def parse_class(xml_data):
     parse_class_variable_declaration(xml_data, top_node)            # parse class variable declarations, if any
     parse_class_subroutine_declaration(xml_data, top_node)        # parse class subroutines, if any
     append_nodes_batch(xml_data, top_node, 1)                        # <symbol> '}'
-
     if (xml_data.length > 1):
         print ("Seems we read too few lines")
     return top_node
@@ -138,8 +137,13 @@ def parse_statements(xml_data, anchor):
         if (not statements_anchor):
             statements_anchor = XML_imp.createElement('statements')
             anchor.appendChild(statements_anchor)
-
         parse_statement(xml_data, statements_anchor)
+
+    if not statements_anchor:  # create empty statment for empty whiles
+            statements_anchor = XML_imp.createElement('statements')
+            blank_tag = XML_imp.createTextNode('\n')
+            statements_anchor.appendChild(blank_tag)
+            anchor.appendChild(statements_anchor)
 
 
 def parse_statement(xml_data, anchor):

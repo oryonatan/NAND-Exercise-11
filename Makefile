@@ -1,44 +1,44 @@
 easy:
-	python JackCompiler.py Seven
+	python3 JackCompiler.py Seven
 
 moderate:
-	python JackCompiler.py ConvertToBin
+	python3 JackCompiler.py ConvertToBin
 
 hard:
-	python JackCompiler.py Square
+	python3 JackCompiler.py Square
 
 average:
-	python JackCompiler.py Average
+	python3 JackCompiler.py Average
 
 pong:
-	python JackCompiler.py Pong
+	python3 JackCompiler.py Pong
 
 final:
-	python JackCompiler.py ComplexArrays
+	python3 JackCompiler.py ComplexArrays
 
 testSeven:
 	@rm -f sevenOutput.log
-	python JackCompiler.py Seven > sevenOutput.log
+	python3 JackCompiler.py Seven > sevenOutput.log
 
 testPong:
 	@rm -f pongOutput.log
-	python JackCompiler.py Pong > pongOutput.log
+	python3 JackCompiler.py Pong > pongOutput.log
 
 testAverage:
 	@rm -f averageOutput.log
-	python JackCompiler.py Average > averageOutput.log
+	python3 JackCompiler.py Average > averageOutput.log
 
 testSquare:
 	@rm -f squareOutput.log
-	python JackCompiler.py Square > squareOutput.log
+	python3 JackCompiler.py Square > squareOutput.log
 
 testComplexArrays:
 	@rm -f complexArraysOutput.log
-	python JackCompiler.py ComplexArrays > complexArraysOutput.log
+	python3 JackCompiler.py ComplexArrays > complexArraysOutput.log
 
 testConvertToBin:
 	@rm -f convertToBinOutput.log
-	python JackCompiler.py ConvertToBin > convertToBinOutput.log
+	python3 JackCompiler.py ConvertToBin > convertToBinOutput.log
 
 test: testSeven testPong testAverage testSquare testComplexArrays testConvertToBin easy moderate
 

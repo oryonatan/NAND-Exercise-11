@@ -13,8 +13,8 @@ if __name__ == '__main__':
 
     xml_data, file_names = analyze(root_dir)
 
-    # dump_xml = False
-    dump_xml = True
+    dump_xml = False
+    # dump_xml = True
     if dump_xml:
         print("Compiler Module debug mode activated\n")
         print("=" * 30)
@@ -24,8 +24,8 @@ if __name__ == '__main__':
         if dump_xml:
             print("Parser debug mode: parsing file #" + str(i + 1) + " (" + file_names[i] + ")")
             print("~" * 20)
-            print(xml_data[i].toprettyxml())
-            source_code = encode(xml_data[i])
+            # print(xml_data[i].toprettyxml())
+            # source_code = encode(xml_data[i])
             print("~" * 20)
             print("File number #" + str(i + 1) + " compilation complete\n")
             print ("=" * 30)
