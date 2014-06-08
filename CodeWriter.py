@@ -545,6 +545,8 @@ def extractTerm(root, scope, mode='function'):
 
                 params = term.nextSibling.nextSibling
                 for arg in params.childNodes:
+                    if (arg.nodeValue == '\n'): # empty function call
+                        break
                     if (arg.nodeName == 'symbol'):
                         continue
                     buf += compileExpression(arg, scope, mode)
